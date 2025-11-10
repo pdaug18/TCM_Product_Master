@@ -65,3 +65,10 @@ select
     'View 2' as VIEW,
     count(distinct "Product ID/SKU") AS "Total SKUs"
 from BRONZE_DATA.TCM_BRONZE.INVOICE_HIST_VIEW_2;
+
+
+-- validation of changes in MASTER_PRODUCT_TABLE.sql
+select "Product ID/SKU", "PRDT CAT DESCR", "Product Description", "PARENT DESCRIPTION" from SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE
+where "PRDT CAT DESCR" ILIKE '%FABRIC%'
+AND "PARENT DESCRIPTION" = "Product Description";
+ 
