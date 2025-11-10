@@ -226,7 +226,11 @@ SELECT
     c.category                                  AS "CATEGORY (Calc)",
 
     s."ATTR (SKU) ID_PARENT"                    AS "Product Name/Parent ID",
-    COALESCE(pd."PARENT DESCRIPTION", 'MISSING DESCRIPTION - UPDATE TCM') AS "PARENT DESCRIPTION",
+    CASE
+        WHEN "PRDT CAT DESCR" ILIKE '%FABRIC%' AND pd."PARENT DESCRIPTION" IS NULL
+        THEN b."Product Description"
+        ELSE COALESCE(pd."PARENT DESCRIPTION", 'MISSING DESCRIPTION - UPDATE TCM')
+    END AS "PARENT DESCRIPTION",
 
     s."ATTR (SKU) CERT_NUM",
     s."ATTR (SKU) COLOR",
