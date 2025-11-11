@@ -31,6 +31,7 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	"PROP 65",
 	ALT_KEY,
 	ID_LOC,
+    "STATUS",
 	"Booking Type Table"
 ) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
  as
@@ -45,9 +46,11 @@ WITH ITMMAS_BASE AS (
         ib.code_cat_cost AS "COST CATEGORY",
         ib.DESCR_1 || ' ' || ib.DESCR_2 AS "Product Description",
         ib.code_comm,
-        ib.id_loc
+        ib.id_loc,
+        ib.FLAG_STAT_ITEM
     FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic__test" ib
-    WHERE ib."is_deleted" = 0
+    WHERE ib.FLAG_STAT_ITEM <> 'O'  -- Exclude Obsolete items 
+    AND ib."is_deleted" = 0
 ),
 
 /* ========================================
@@ -109,6 +112,7 @@ parent_descriptions AS (
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Dynamic__test" id
            ON ib.id_item = id.id_item
     WHERE ib.code_comm = 'PAR'
+      AND ib.FLAG_STAT_ITEM <> 'O'  -- Exclude Obsolete items
       AND id.seq_descr BETWEEN 800 AND 810
       AND ib."is_deleted" = 0
       AND id."is_deleted" = 0
@@ -256,6 +260,7 @@ SELECT
     p65.prop_65                                 AS "PROP 65",
     b."ALT_KEY",
     b.id_loc                                    AS "ID_LOC",
+    b.FLAG_STAT_ITEM                            AS "STATUS",
     /* placeholder until sourced */
     NULL                                        AS "Booking Type Table"
 
@@ -274,3 +279,6 @@ LEFT JOIN vertical_calc      v   ON b.id_item = v.id_item
 LEFT JOIN prop_65_calc       p65 ON s."ATTR (SKU) ID_PARENT" = p65.id_item_par
 
 WHERE b.code_comm <> 'PAR';
+
+
+select count(*) from SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE;
