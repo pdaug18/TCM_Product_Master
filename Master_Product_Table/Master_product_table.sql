@@ -31,7 +31,8 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	"PROP 65",
 	ALT_KEY,
 	ID_LOC,
-    "STATUS",
+    "Child Item Status",
+    "Parent Item Status",
 	"Booking Type Table"
 ) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
  as
@@ -47,10 +48,9 @@ WITH ITMMAS_BASE AS (
         ib.DESCR_1 || ' ' || ib.DESCR_2 AS "Product Description",
         ib.code_comm,
         ib.id_loc,
-        ib.FLAG_STAT_ITEM
-    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic__test" ib
-    WHERE ib.FLAG_STAT_ITEM <> 'O'  -- Exclude Obsolete items 
-    AND ib."is_deleted" = 0
+        ib.FLAG_STAT_ITEM AS CHILD_ITEM_STATUS
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic__test" ib 
+    WHERE ib."is_deleted" = 0
 ),
 
 /* ========================================
@@ -107,16 +107,16 @@ parent_attributes AS (
 parent_descriptions AS (
     SELECT
         ib.id_item,
+        ib.FLAG_STAT_ITEM AS PARENT_ITEM_STATUS,
         LISTAGG(id.descr_addl, '') WITHIN GROUP (ORDER BY SEQ_DESCR) AS "PARENT DESCRIPTION"
     FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic__test" ib
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Dynamic__test" id
            ON ib.id_item = id.id_item
     WHERE ib.code_comm = 'PAR'
-      AND ib.FLAG_STAT_ITEM <> 'O'  -- Exclude Obsolete items
       AND id.seq_descr BETWEEN 800 AND 810
       AND ib."is_deleted" = 0
       AND id."is_deleted" = 0
-    GROUP BY ib.id_item
+    GROUP BY ib.id_item, ib.FLAG_STAT_ITEM
 ),
 
 /* ========================================
@@ -260,7 +260,8 @@ SELECT
     p65.prop_65                                 AS "PROP 65",
     b."ALT_KEY",
     b.id_loc                                    AS "ID_LOC",
-    b.FLAG_STAT_ITEM                            AS "STATUS",
+    b.CHILD_ITEM_STATUS                        AS "Child Item Status",
+    pd.PARENT_ITEM_STATUS                       AS "Parent Item Status",
     /* placeholder until sourced */
     NULL                                        AS "Booking Type Table"
 
