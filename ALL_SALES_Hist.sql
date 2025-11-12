@@ -160,7 +160,7 @@ left join (
 left join "BRONZE_DATA"."TCM_BRONZE"."CUSMAS_SHIPTO_Bronze" cst on sls."Customer ID" = cst.id_cust and sls.seq_shipto = cst.seq_shipto
 left join "BRONZE_DATA"."TCM_BRONZE"."CUSMAS_SOLDTO_Bronze" st on ltrim(sls."Customer ID") = ltrim(st.id_cust)
 left join "BRONZE_DATA"."TCM_BRONZE"."CUST_GROUP_CODE_Bronze" gc on st.code_user_3_ar = gc.group_code
-WHERE sls."INVOICE DATE" > '1/1/2014' AND st.CODE_CUST <> 'IC';
+WHERE sls."Calendar Date" > '1/1/2014' AND st.CODE_CUST <> 'IC';
 
 
 describe table "BRONZE_DATA"."TCM_BRONZE"."ALL_SALES_HIST"; -- 69 columns
@@ -169,3 +169,8 @@ describe table "BRONZE_DATA"."TCM_BRONZE"."INVOICE_HIST_VIEW_2"; -- 71 columns
 select count(*) from "BRONZE_DATA"."TCM_BRONZE"."ALL_SALES_HIST";
 
 select * from "BRONZE_DATA"."TCM_BRONZE"."ALL_SALES_HIST" limit 100;
+
+select distinct "Booking Type Table", count(*) as rec_count
+from "BRONZE_DATA"."TCM_BRONZE"."ALL_SALES_HIST" 
+group by "Booking Type Table" 
+order by rec_count desc;
