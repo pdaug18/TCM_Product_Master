@@ -114,8 +114,7 @@ parent_descriptions AS (
            ON ib.id_item = id.id_item
     WHERE ib.code_comm = 'PAR'
       AND id.seq_descr BETWEEN 800 AND 810
-    --   AND ib."is_deleted" = 0
-    --   AND id."is_deleted" = 0
+    --   AND ib."ID_ITEM" ilike '160SG'  -- test filter to limit data volume
     GROUP BY ib.id_item, ib.FLAG_STAT_ITEM
 ),
 

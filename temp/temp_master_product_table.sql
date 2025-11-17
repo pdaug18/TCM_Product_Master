@@ -343,3 +343,12 @@ WHERE ib."is_deleted" = 0;
 
 
 describe table BRONZE_DATA.TCM_BRONZE.INVOICE_HIST_VIEW_2;
+
+
+
+-- Investigate MASTER PRODUCT TABLE; get all parent id_items  where 
+-- child_status is active but parent_status is null
+SELECT DISTINCT "Product Name/Parent ID"    -- 11,339 parent item_ids
+FROM SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE
+WHERE "Child Item Status" IS NOT NULL
+  AND "Parent Item Status" IS NULL;

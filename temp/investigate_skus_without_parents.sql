@@ -45,7 +45,8 @@ select DATE_INVC from nsa.CP_INVLIN_HIST
 WHERE LTRIM(ID_ITEM) LIKE 'C52JTSRC2MO6X';
 
 select ID_ITEM, DESCR_1, DESCR_2, FLAG_STAT_ITEM from nsa.ITMMAS_BASE
-WHERE LTRIM(ID_ITEM) LIKE '160SG%';
+WHERE LTRIM(ID_ITEM) LIKE '10899-01%';
+
 /*
 | ID_ITEM     | DESCR_1                 | DESCR_2           | FLAG_STAT_ITEM |
 |-------------|-------------------------|-------------------|----------------|
