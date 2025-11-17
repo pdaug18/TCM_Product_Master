@@ -49,8 +49,8 @@ WITH ITMMAS_BASE AS (
         ib.code_comm,
         ib.id_loc,
         ib.FLAG_STAT_ITEM AS CHILD_ITEM_STATUS
-    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic__test" ib 
-    WHERE ib."is_deleted" = 0
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib 
+    -- WHERE ib."is_deleted" = 0
 ),
 
 /* ========================================
@@ -67,13 +67,13 @@ sku_attributes AS (
         MAX(CASE WHEN av.id_attr = 'CERT_NUM'    THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) CERT_NUM",
         MAX(CASE WHEN av.id_attr = 'TARIFF_CODE' THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) TARIFF_CODE",
         MAX(CASE WHEN av.id_attr = 'PFAS'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) PFAS"
-    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic__test" ib
-    LEFT JOIN BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Dynamic__test" av
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+    LEFT JOIN BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Bronze" av
            ON ib.id_item = av.id_item
           AND ib.code_comm = av.code_comm
     WHERE ib.code_comm <> 'PAR'
-      AND ib."is_deleted" = 0 
-      AND av."is_deleted" = 0
+    --   AND ib."is_deleted" = 0 
+    --   AND av."is_deleted" = 0
     GROUP BY ib.id_item
 ),
 
@@ -95,9 +95,9 @@ parent_attributes AS (
         MAX(CASE WHEN av.id_attr = 'OTHER'        THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) OTHER",
         MAX(CASE WHEN av.id_attr = 'PAD PRINT'    THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PAD PRINT",
         MAX(CASE WHEN av.id_attr = 'TRACKING'     THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) TRACKING"
-    FROM BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Dynamic__test" av
+    FROM BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Bronze" av
     WHERE av.code_comm = 'PAR'
-      AND av."is_deleted" = 0
+    --   AND av."is_deleted" = 0
     GROUP BY av.id_item
 ),
 
@@ -109,13 +109,13 @@ parent_descriptions AS (
         ib.id_item,
         ib.FLAG_STAT_ITEM AS PARENT_ITEM_STATUS,
         LISTAGG(id.descr_addl, '') WITHIN GROUP (ORDER BY SEQ_DESCR) AS "PARENT DESCRIPTION"
-    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic__test" ib
-    LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Dynamic__test" id
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+    LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Bronze" id
            ON ib.id_item = id.id_item
     WHERE ib.code_comm = 'PAR'
       AND id.seq_descr BETWEEN 800 AND 810
-      AND ib."is_deleted" = 0
-      AND id."is_deleted" = 0
+    --   AND ib."is_deleted" = 0
+    --   AND id."is_deleted" = 0
     GROUP BY ib.id_item, ib.FLAG_STAT_ITEM
 ),
 
