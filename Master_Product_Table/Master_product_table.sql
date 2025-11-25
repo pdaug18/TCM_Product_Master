@@ -33,7 +33,8 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	ID_LOC,
     "Child Item Status",
     "Parent Item Status",
-	"Booking Type Table"
+	"Booking Type Table",
+    "Adj_Parent_Item_Status"
 ) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
  as
 /* ========================================
@@ -211,73 +212,95 @@ prop_65_calc AS (
         END AS prop_65
     FROM BRONZE_DATA.TCM_BRONZE."PRDSTR_Bronze" p
     GROUP BY p.id_item_par
+),
+
+/*  ========================================
+   Adjusted Parent Item Status Logic
+   =======================================*/
+Adjusted_Parent_Item_Status AS (
+    SELECT 
+        adj."Product ID/SKU",
+        count(*) AS cnt,
+    FROM (         
+        SELECT 
+            b.ID_ITEM as "Product ID/SKU",
+            pd.PARENT_ITEM_STATUS AS "Parent Item Status",
+            b.CHILD_ITEM_STATUS AS "Child Item Status",
+        FROM ITMMAS_BASE b
+        LEFT JOIN sku_attributes        s   ON b.id_item = s.id_item
+        LEFT JOIN parent_descriptions   pd  ON s."ATTR (SKU) ID_PARENT" = pd.id_item
+        WHERE b.CHILD_ITEM_STATUS = 'A' AND pd.PARENT_ITEM_STATUS = 'O'
+    ) adj
+    GROUP BY adj."Product ID/SKU", adj."Parent Item Status" 
 )
+        
+    SELECT
+        b.id_item                                   AS "Product ID/SKU",
+        b."Product Description",
+        b."COST CATEGORY"                           AS "COST CATEGORY ID",
+        COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY')                 AS "COST CAT DESCR",
+        b."NSA_PRODUCT CATEGORY/VERTICAL"           AS "PRODUCT CATEGORY/VERTICAL",
+        COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY') AS "PRDT CAT DESCR",
 
--- =========================
--- Final SELECT (SKUs only)
--- =========================
-SELECT
-    b.id_item                                   AS "Product ID/SKU",
-    b."Product Description",
-    b."COST CATEGORY"                           AS "COST CATEGORY ID",
-    COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY')                 AS "COST CAT DESCR",
-    b."NSA_PRODUCT CATEGORY/VERTICAL"           AS "PRODUCT CATEGORY/VERTICAL",
-    COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY') AS "PRDT CAT DESCR",
+        v.vertical                                  AS "VERTICAL (Calc)",
+        c.category                                  AS "CATEGORY (Calc)",
 
-    v.vertical                                  AS "VERTICAL (Calc)",
-    c.category                                  AS "CATEGORY (Calc)",
+        s."ATTR (SKU) ID_PARENT"                    AS "Product Name/Parent ID",
+        CASE
+            WHEN "PRDT CAT DESCR" ILIKE '%FABRIC%' AND pd."PARENT DESCRIPTION" IS NULL
+            THEN b."Product Description"
+            ELSE COALESCE(pd."PARENT DESCRIPTION", 'MISSING DESCRIPTION - UPDATE TCM')
+        END AS "PARENT DESCRIPTION",
 
-    s."ATTR (SKU) ID_PARENT"                    AS "Product Name/Parent ID",
-    CASE
-        WHEN "PRDT CAT DESCR" ILIKE '%FABRIC%' AND pd."PARENT DESCRIPTION" IS NULL
-        THEN b."Product Description"
-        ELSE COALESCE(pd."PARENT DESCRIPTION", 'MISSING DESCRIPTION - UPDATE TCM')
-    END AS "PARENT DESCRIPTION",
+        s."ATTR (SKU) CERT_NUM",
+        s."ATTR (SKU) COLOR",
+        s."ATTR (SKU) SIZE",
+        s."ATTR (SKU) LENGTH",
+        s."ATTR (SKU) TARIFF_CODE",
+        s."ATTR (SKU) UPC_CODE",
+        s."ATTR (SKU) PFAS",
 
-    s."ATTR (SKU) CERT_NUM",
-    s."ATTR (SKU) COLOR",
-    s."ATTR (SKU) SIZE",
-    s."ATTR (SKU) LENGTH",
-    s."ATTR (SKU) TARIFF_CODE",
-    s."ATTR (SKU) UPC_CODE",
-    s."ATTR (SKU) PFAS",
+        pa."ATTR (PAR) BERRY",
+        pa."ATTR (PAR) CARE",
+        pa."ATTR (PAR) HEAT TRANSFER",
+        pa."ATTR (PAR) OTHER",
+        pa."ATTR (PAR) PAD PRINT",
+        pa."ATTR (PAR) PRODUCT CAT",
+        pa."ATTR (PAR) PRODUCT TYPE",
+        pa."ATTR (PAR) TRACKING",
+        pa."ATTR (PAR) Z_BRAND",
+        pa."ATTR (PAR) Z_CATEGORY",
+        pa."ATTR (PAR) Z_GENDER",
+        pa."ATTR (PAR) Z_VERTICAL",
 
-    pa."ATTR (PAR) BERRY",
-    pa."ATTR (PAR) CARE",
-    pa."ATTR (PAR) HEAT TRANSFER",
-    pa."ATTR (PAR) OTHER",
-    pa."ATTR (PAR) PAD PRINT",
-    pa."ATTR (PAR) PRODUCT CAT",
-    pa."ATTR (PAR) PRODUCT TYPE",
-    pa."ATTR (PAR) TRACKING",
-    pa."ATTR (PAR) Z_BRAND",
-    pa."ATTR (PAR) Z_CATEGORY",
-    pa."ATTR (PAR) Z_GENDER",
-    pa."ATTR (PAR) Z_VERTICAL",
+        p65.prop_65                                 AS "PROP 65",
+        b."ALT_KEY",
+        b.id_loc                                    AS "ID_LOC",
+        b.CHILD_ITEM_STATUS                        AS "Child Item Status",
+        pd.PARENT_ITEM_STATUS                       AS "Parent Item Status",
+        /* placeholder until sourced */
+        NULL                                        AS "Booking Type Table",
+        /* Adjusted Parent Item Status via the CTE logic */
+        CASE 
+            WHEN apit.cnt >= 1 THEN 'A'
+            ELSE pd.PARENT_ITEM_STATUS
+        END AS "Adj_Parent_Item_Status"
 
-    p65.prop_65                                 AS "PROP 65",
-    b."ALT_KEY",
-    b.id_loc                                    AS "ID_LOC",
-    b.CHILD_ITEM_STATUS                        AS "Child Item Status",
-    pd.PARENT_ITEM_STATUS                       AS "Parent Item Status",
-    /* placeholder until sourced */
-    NULL                                        AS "Booking Type Table"
-
-FROM ITMMAS_BASE b
-LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_COST_Bronze" cc
-       ON b."COST CATEGORY" = cc.code_cat_cost
-LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc
-       ON b."NSA_PRODUCT CATEGORY/VERTICAL" = pc.code_cat_prdt
-      AND pc.code_type_cust IS NULL
-
-LEFT JOIN sku_attributes     s   ON b.id_item = s.id_item
-LEFT JOIN parent_attributes  pa  ON s."ATTR (SKU) ID_PARENT" = pa.ID_PARENT
-LEFT JOIN parent_descriptions pd ON s."ATTR (SKU) ID_PARENT" = pd.id_item
-LEFT JOIN category_calc      c   ON b.id_item = c.id_item
-LEFT JOIN vertical_calc      v   ON b.id_item = v.id_item
-LEFT JOIN prop_65_calc       p65 ON s."ATTR (SKU) ID_PARENT" = p65.id_item_par
-
-WHERE b.code_comm <> 'PAR';
+    FROM ITMMAS_BASE b
+    LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_COST_Bronze" cc ON b."COST CATEGORY" = cc.code_cat_cost
+    LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc ON b."NSA_PRODUCT CATEGORY/VERTICAL" = pc.code_cat_prdt AND pc.code_type_cust IS NULL
+    LEFT JOIN sku_attributes     s   ON b.id_item = s.id_item
+    LEFT JOIN parent_attributes  pa  ON s."ATTR (SKU) ID_PARENT" = pa.ID_PARENT
+    LEFT JOIN parent_descriptions pd ON s."ATTR (SKU) ID_PARENT" = pd.id_item
+    LEFT JOIN category_calc      c   ON b.id_item = c.id_item
+    LEFT JOIN vertical_calc      v   ON b.id_item = v.id_item
+    LEFT JOIN prop_65_calc       p65 ON s."ATTR (SKU) ID_PARENT" = p65.id_item_par
+    LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Product ID/SKU" 
+    WHERE b.code_comm <> 'PAR';
 
 
-select count(*) from SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE;
+
+select distinct("Adj_Parent_Item_Status"), count(*) from SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE 
+group by "Adj_Parent_Item_Status" order by "Adj_Parent_Item_Status";
+
+select * from SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE limit 100;
