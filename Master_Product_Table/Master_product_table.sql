@@ -5,6 +5,7 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	"COST CAT DESCR",
 	"PRODUCT CATEGORY/VERTICAL",
 	"PRDT CAT DESCR",
+	"COMMODITY CODE",
 	"VERTICAL (Calc)",
 	"CATEGORY (Calc)",
 	"Product Name/Parent ID",
@@ -36,7 +37,7 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	"Booking Type Table",
     "Adj_Parent_Item_Status"
 ) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
- as
+as
 /* ========================================
    ITMMAS_BASE — Base item master (kept)
    ======================================== */
@@ -220,18 +221,18 @@ prop_65_calc AS (
 Adjusted_Parent_Item_Status AS (
     SELECT 
         adj."Product ID/SKU",
-        count(*) AS cnt,
+        count(*) AS cnt
     FROM (         
         SELECT 
             b.ID_ITEM as "Product ID/SKU",
             pd.PARENT_ITEM_STATUS AS "Parent Item Status",
-            b.CHILD_ITEM_STATUS AS "Child Item Status",
+            b.CHILD_ITEM_STATUS AS "Child Item Status"
         FROM ITMMAS_BASE b
         LEFT JOIN sku_attributes        s   ON b.id_item = s.id_item
         LEFT JOIN parent_descriptions   pd  ON s."ATTR (SKU) ID_PARENT" = pd.id_item
         WHERE b.CHILD_ITEM_STATUS = 'A' AND pd.PARENT_ITEM_STATUS = 'O'
     ) adj
-    GROUP BY adj."Product ID/SKU", adj."Parent Item Status" 
+    GROUP BY adj."Product ID/SKU" 
 )
         
     SELECT
@@ -241,7 +242,7 @@ Adjusted_Parent_Item_Status AS (
         COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY')                 AS "COST CAT DESCR",
         b."NSA_PRODUCT CATEGORY/VERTICAL"           AS "PRODUCT CATEGORY/VERTICAL",
         COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY') AS "PRDT CAT DESCR",
-
+        b."CODE_COMM" AS "COMMODITY CODE",
         v.vertical                                  AS "VERTICAL (Calc)",
         c.category                                  AS "CATEGORY (Calc)",
 
