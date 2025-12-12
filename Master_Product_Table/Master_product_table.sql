@@ -6,6 +6,7 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	"PRODUCT CATEGORY/VERTICAL",
 	"PRDT CAT DESCR",
 	"COMMODITY CODE",
+    "RATIO_STK_PUR",
 	"VERTICAL (Calc)",
 	"CATEGORY (Calc)",
 	"Product Name/Parent ID",
@@ -32,12 +33,12 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	"PROP 65",
 	ALT_KEY,
 	ID_LOC,
-    "Child Item Status",
-    "Parent Item Status",
+	"Child Item Status",
+	"Parent Item Status",
 	"Booking Type Table",
-    "Adj_Parent_Item_Status"
+	"Adj_Parent_Item_Status"
 ) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
-as
+ as
 /* ========================================
    ITMMAS_BASE — Base item master (kept)
    ======================================== */
@@ -50,7 +51,8 @@ WITH ITMMAS_BASE AS (
         ib.DESCR_1 || ' ' || ib.DESCR_2 AS "Product Description",
         ib.code_comm,
         ib.id_loc,
-        ib.FLAG_STAT_ITEM AS CHILD_ITEM_STATUS
+        ib.FLAG_STAT_ITEM AS CHILD_ITEM_STATUS,
+        ib."RATIO_STK_PUR"
     FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib 
     -- WHERE ib."is_deleted" = 0
 ),
@@ -243,6 +245,7 @@ Adjusted_Parent_Item_Status AS (
         b."NSA_PRODUCT CATEGORY/VERTICAL"           AS "PRODUCT CATEGORY/VERTICAL",
         COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY') AS "PRDT CAT DESCR",
         b."CODE_COMM" AS "COMMODITY CODE",
+        b."RATIO_STK_PUR",
         v.vertical                                  AS "VERTICAL (Calc)",
         c.category                                  AS "CATEGORY (Calc)",
 
@@ -298,10 +301,3 @@ Adjusted_Parent_Item_Status AS (
     LEFT JOIN prop_65_calc       p65 ON s."ATTR (SKU) ID_PARENT" = p65.id_item_par
     LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Product ID/SKU" 
     WHERE b.code_comm <> 'PAR';
-
-
-
-select distinct("Adj_Parent_Item_Status"), count(*) from SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE 
-group by "Adj_Parent_Item_Status" order by "Adj_Parent_Item_Status";
-
-select * from SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE limit 100;
