@@ -24,3 +24,86 @@ where id_item = 'VNT99345';
 
 
 -- example: VNT99345
+select id_item, "Product Description"
+from (
+    SELECT 
+        ib.id_item,
+        ib.DESCR_1 || ' ' || ib.DESCR_2 AS "Product Description"
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+)
+where "Product Description" is null;
+
+
+SELECT
+    ib.id_item,
+    ib.FLAG_STAT_ITEM AS PARENT_ITEM_STATUS,
+    CASE
+        WHEN COUNT(id.id_item) > 0 
+            THEN LISTAGG(id.descr_addl, '') WITHIN GROUP (ORDER BY id.SEQ_DESCR)
+        WHEN ib.DESCR_1 != 'PARENT ITEM FOR LABELS'
+            THEN ib.DESCR_2
+        ELSE 'MISSING PARENT DESCRIPTION' 
+    END AS "PARENT DESCRIPTION"
+FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+LEFT JOIN (
+    SELECT id_item, descr_addl, SEQ_DESCR
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Bronze"
+    WHERE seq_descr BETWEEN 800 AND 810
+    -- AND id_item = '15812-01%'
+) id ON ib.id_item = id.id_item
+WHERE ib.code_comm = 'PAR'
+GROUP BY ib.id_item, ib.FLAG_STAT_ITEM, ib.DESCR_1, ib.DESCR_2
+HAVING ib.id_item LIKE '15812-01%';
+
+
+
+select * 
+from BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Bronze"
+where 
+id_item like '15812-01%'
+AND seq_descr BETWEEN 800 AND 810;
+
+select ID_ITEM, DESCR_1, DESCR_2
+FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze"
+where id_item like '15812-01%';
+
+-- ========== Final Query ==========
+WITH child_descriptions AS (
+    SELECT 
+        parent_id_item, 
+        child_descr_2
+    FROM (
+        SELECT 
+            p.id_item AS parent_id_item,
+            c.DESCR_2 AS child_descr_2,
+            ROW_NUMBER() OVER(PARTITION BY p.id_item ORDER BY c.id_item) as rn
+        FROM 
+            BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" p
+        JOIN 
+            BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" c 
+            ON c.id_item LIKE p.id_item || '%' AND c.id_item != p.id_item
+        WHERE 
+            p.code_comm = 'PAR'
+            AND c.DESCR_1 != 'PARENT ITEM FOR LABELS'
+    )
+    WHERE rn = 1
+)
+SELECT
+    ib.id_item,
+    ib.FLAG_STAT_ITEM AS PARENT_ITEM_STATUS,
+    CASE
+        WHEN COUNT(id.id_item) > 0 
+            THEN LISTAGG(id.descr_addl, '') WITHIN GROUP (ORDER BY id.SEQ_DESCR)
+        ELSE COALESCE(cd.child_descr_2, 'MISSING PARENT DESCRIPTION')
+    END AS "PARENT DESCRIPTION"
+FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+LEFT JOIN (
+    SELECT id_item, descr_addl, SEQ_DESCR
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Bronze"
+    WHERE seq_descr BETWEEN 800 AND 810
+) id ON ib.id_item = id.id_item
+LEFT JOIN child_descriptions cd ON ib.id_item = cd.parent_id_item
+WHERE ib.code_comm = 'PAR'
+-- AND id.id_item is null
+GROUP BY ib.id_item, ib.FLAG_STAT_ITEM, ib.DESCR_1, ib.DESCR_2, cd.child_descr_2;
+-- HAVING ib.id_item LIKE '15812-01%';

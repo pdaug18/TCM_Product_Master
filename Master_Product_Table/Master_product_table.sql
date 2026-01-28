@@ -6,7 +6,7 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	"PRODUCT CATEGORY/VERTICAL",
 	"PRDT CAT DESCR",
 	"COMMODITY CODE",
-    "RATIO_STK_PUR",
+	RATIO_STK_PUR,
 	"VERTICAL (Calc)",
 	"CATEGORY (Calc)",
 	"Product Name/Parent ID",
@@ -30,12 +30,12 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	"ATTR (PAR) Z_CATEGORY",
 	"ATTR (PAR) Z_GENDER",
 	"ATTR (PAR) Z_VERTICAL",
+	"Advertised Flag",
 	"PROP 65",
 	ALT_KEY,
 	ID_LOC,
 	"Child Item Status",
 	"Parent Item Status",
-	"Booking Type Table",
 	"Adj_Parent_Item_Status"
 ) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
  as
@@ -53,8 +53,9 @@ WITH ITMMAS_BASE AS (
         ib.id_loc,
         ib.FLAG_STAT_ITEM AS CHILD_ITEM_STATUS,
         ib."RATIO_STK_PUR"
-    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib 
-    -- WHERE ib."is_deleted" = 0
+    -- FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib 
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic" ib
+    WHERE ib."is_deleted" = 0
 ),
 
 /* ========================================
@@ -71,12 +72,14 @@ sku_attributes AS (
         MAX(CASE WHEN av.id_attr = 'CERT_NUM'    THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) CERT_NUM",
         MAX(CASE WHEN av.id_attr = 'TARIFF_CODE' THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) TARIFF_CODE",
         MAX(CASE WHEN av.id_attr = 'PFAS'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) PFAS"
-    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+    -- FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic" ib
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Bronze" av
+    -- LEFT JOIN BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Dynamic" av
            ON ib.id_item = av.id_item
           AND ib.code_comm = av.code_comm
     WHERE ib.code_comm <> 'PAR'
-    --   AND ib."is_deleted" = 0 
+      AND ib."is_deleted" = 0 
     --   AND av."is_deleted" = 0
     GROUP BY ib.id_item
 ),
@@ -100,6 +103,7 @@ parent_attributes AS (
         MAX(CASE WHEN av.id_attr = 'PAD PRINT'    THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PAD PRINT",
         MAX(CASE WHEN av.id_attr = 'TRACKING'     THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) TRACKING"
     FROM BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Bronze" av
+    -- FROM BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Dynamic" av
     WHERE av.code_comm = 'PAR'
     --   AND av."is_deleted" = 0
     GROUP BY av.id_item
@@ -113,11 +117,13 @@ parent_descriptions AS (
         ib.id_item,
         ib.FLAG_STAT_ITEM AS PARENT_ITEM_STATUS,
         LISTAGG(id.descr_addl, '') WITHIN GROUP (ORDER BY SEQ_DESCR) AS "PARENT DESCRIPTION"
-    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+    -- FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic" ib
     LEFT JOIN (select * from BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Bronze"
                 where seq_descr BETWEEN 800 AND 810) id
            ON ib.id_item = id.id_item
-    WHERE ib.code_comm = 'PAR'
+    WHERE ib.code_comm = 'PAR' 
+      AND ib."is_deleted" = 0
     GROUP BY ib.id_item, ib.FLAG_STAT_ITEM
 ),
 
@@ -263,7 +269,6 @@ Adjusted_Parent_Item_Status AS (
         s."ATTR (SKU) TARIFF_CODE",
         s."ATTR (SKU) UPC_CODE",
         s."ATTR (SKU) PFAS",
-
         pa."ATTR (PAR) BERRY",
         pa."ATTR (PAR) CARE",
         pa."ATTR (PAR) HEAT TRANSFER",
@@ -276,14 +281,13 @@ Adjusted_Parent_Item_Status AS (
         pa."ATTR (PAR) Z_CATEGORY",
         pa."ATTR (PAR) Z_GENDER",
         pa."ATTR (PAR) Z_VERTICAL",
-
+        stkl.adv as "Advertised Flag",
         p65.prop_65                                 AS "PROP 65",
         b."ALT_KEY",
         b.id_loc                                    AS "ID_LOC",
         b.CHILD_ITEM_STATUS                        AS "Child Item Status",
         pd.PARENT_ITEM_STATUS                       AS "Parent Item Status",
         /* placeholder until sourced */
-        NULL                                        AS "Booking Type Table",
         /* Adjusted Parent Item Status via the CTE logic */
         CASE 
             WHEN apit.cnt >= 1 THEN 'A'
@@ -293,6 +297,7 @@ Adjusted_Parent_Item_Status AS (
     FROM ITMMAS_BASE b
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_COST_Bronze" cc ON b."COST CATEGORY" = cc.code_cat_cost
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc ON b."NSA_PRODUCT CATEGORY/VERTICAL" = pc.code_cat_prdt AND pc.code_type_cust IS NULL
+    LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_STK_LIST_Bronze" stkl on b.id_item = stkl.id_item 
     LEFT JOIN sku_attributes     s   ON b.id_item = s.id_item
     LEFT JOIN parent_attributes  pa  ON s."ATTR (SKU) ID_PARENT" = pa.ID_PARENT
     LEFT JOIN parent_descriptions pd ON s."ATTR (SKU) ID_PARENT" = pd.id_item
