@@ -107,3 +107,75 @@ WHERE ib.code_comm = 'PAR'
 -- AND id.id_item is null
 GROUP BY ib.id_item, ib.FLAG_STAT_ITEM, ib.DESCR_1, ib.DESCR_2, cd.child_descr_2;
 -- HAVING ib.id_item LIKE '15812-01%';
+
+
+-- ====== CASE STATEMENT TEST ======
+SELECT
+    ib.id_item,
+    ib.FLAG_STAT_ITEM AS PARENT_ITEM_STATUS,
+    CASE
+        WHEN COUNT(id.id_item) > 0 
+            THEN LISTAGG(id.descr_addl, '') WITHIN GROUP (ORDER BY id.SEQ_DESCR)
+    CASE
+        WHEN COUNT(id.id_item) = 0 
+        THEN COALESCE(
+            (
+                SELECT c.DESCR_2
+                FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" c
+                WHERE c.id_item LIKE ib.id_item
+                  AND c.id_item != ib.id_item
+                  AND c.DESCR_1 != 'PARENT ITEM FOR LABELS'
+                ORDER BY c.id_item
+                LIMIT 1
+            ),
+            'MISSING PARENT DESCRIPTION'
+        )
+    END AS "PARENT DESCRIPTION"
+FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+LEFT JOIN (
+    SELECT id_item, descr_addl, SEQ_DESCR
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Bronze"
+    WHERE seq_descr BETWEEN 800 AND 810
+) id ON ib.id_item = id.id_item
+WHERE ib.code_comm = 'PAR'
+GROUP BY ib.id_item, ib.FLAG_STAT_ITEM;
+
+--- ========== Final Query V3 ==========
+
+WITH primary_descriptions AS (
+    -- 1. Get the primary description from the description table
+    SELECT
+        id.id_item,
+        LISTAGG(id.descr_addl, '') WITHIN GROUP (ORDER BY id.SEQ_DESCR) AS primary_description
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Bronze" id
+    WHERE id.seq_descr BETWEEN 800 AND 810
+    GROUP BY id.id_item
+),
+fallback_descriptions AS (
+    -- 2. Prepare the fallback description from a related child item
+    SELECT 
+        p.id_item as parent_id_item,
+        c.DESCR_2 as fallback_description
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" p
+    LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" c
+        ON c.id_item LIKE p.id_item || '%' -- Find child items
+        AND c.id_item != p.id_item         -- Exclude the parent itself
+        AND c.DESCR_1 != 'PARENT ITEM FOR LABELS' -- Ensure it's a child record
+    WHERE p.code_comm = 'PAR'
+    -- Efficiently get only the first valid child description for each parent
+    QUALIFY ROW_NUMBER() OVER(PARTITION BY p.id_item ORDER BY c.id_item) = 1
+)
+-- 3. Combine the results
+SELECT
+    ib.id_item,
+    ib.FLAG_STAT_ITEM AS PARENT_ITEM_STATUS,
+    COALESCE(
+        pd.primary_description,
+        fd.fallback_description,
+        'MISSING PARENT DESCRIPTION'
+    ) AS "PARENT DESCRIPTION"
+FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+LEFT JOIN primary_descriptions pd ON ib.id_item = pd.id_item
+LEFT JOIN fallback_descriptions fd ON ib.id_item = fd.parent_id_item
+WHERE ib.code_comm = 'PAR';
+-- AND ib.id_item like '15812-01%';

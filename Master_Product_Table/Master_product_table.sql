@@ -241,58 +241,54 @@ Adjusted_Parent_Item_Status AS (
         WHERE b.CHILD_ITEM_STATUS = 'A' AND pd.PARENT_ITEM_STATUS = 'O'
     ) adj
     GROUP BY adj."Product ID/SKU" 
-)
-        
+)   
     SELECT
         b.id_item                                   AS "Product ID/SKU",
-        b."Product Description",
+        UPPER(b."Product Description") AS "Product Description",
         b."COST CATEGORY"                           AS "COST CATEGORY ID",
-        COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY')                 AS "COST CAT DESCR",
-        b."NSA_PRODUCT CATEGORY/VERTICAL"           AS "PRODUCT CATEGORY/VERTICAL",
-        COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY') AS "PRDT CAT DESCR",
+        UPPER(COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY'))                 AS "COST CAT DESCR",
+        UPPER(b."NSA_PRODUCT CATEGORY/VERTICAL")           AS "PRODUCT CATEGORY/VERTICAL",
+        UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) AS "PRDT CAT DESCR",
         b."CODE_COMM" AS "COMMODITY CODE",
         b."RATIO_STK_PUR",
-        v.vertical                                  AS "VERTICAL (Calc)",
-        c.category                                  AS "CATEGORY (Calc)",
-
+        UPPER(v.vertical)                                  AS "VERTICAL (Calc)",
+        UPPER(c.category)                                  AS "CATEGORY (Calc)",
         s."ATTR (SKU) ID_PARENT"                    AS "Product Name/Parent ID",
-        CASE
+        UPPER(CASE
             WHEN "PRDT CAT DESCR" ILIKE '%FABRIC%' AND pd."PARENT DESCRIPTION" IS NULL
             THEN b."Product Description"
             ELSE COALESCE(pd."PARENT DESCRIPTION", 'MISSING DESCRIPTION - UPDATE TCM')
-        END AS "PARENT DESCRIPTION",
-
-        s."ATTR (SKU) CERT_NUM",
-        s."ATTR (SKU) COLOR",
-        s."ATTR (SKU) SIZE",
-        s."ATTR (SKU) LENGTH",
-        s."ATTR (SKU) TARIFF_CODE",
-        s."ATTR (SKU) UPC_CODE",
-        s."ATTR (SKU) PFAS",
-        pa."ATTR (PAR) BERRY",
-        pa."ATTR (PAR) CARE",
-        pa."ATTR (PAR) HEAT TRANSFER",
-        pa."ATTR (PAR) OTHER",
-        pa."ATTR (PAR) PAD PRINT",
-        pa."ATTR (PAR) PRODUCT CAT",
-        pa."ATTR (PAR) PRODUCT TYPE",
-        pa."ATTR (PAR) TRACKING",
-        pa."ATTR (PAR) Z_BRAND",
-        pa."ATTR (PAR) Z_CATEGORY",
-        pa."ATTR (PAR) Z_GENDER",
-        pa."ATTR (PAR) Z_VERTICAL",
-        stkl.adv as "Advertised Flag",
-        p65.prop_65                                 AS "PROP 65",
+        END) AS "PARENT DESCRIPTION",
+        UPPER(s."ATTR (SKU) CERT_NUM") AS "ATTR (SKU) CERT_NUM",
+        UPPER(s."ATTR (SKU) COLOR") AS "ATTR (SKU) COLOR",
+        UPPER(s."ATTR (SKU) SIZE") AS "ATTR (SKU) SIZE",
+        UPPER(s."ATTR (SKU) LENGTH") AS "ATTR (SKU) LENGTH",
+        UPPER(s."ATTR (SKU) TARIFF_CODE") AS "ATTR (SKU) TARIFF_CODE",
+        UPPER(s."ATTR (SKU) UPC_CODE") AS "ATTR (SKU) UPC_CODE",
+        UPPER(s."ATTR (SKU) PFAS") AS "ATTR (SKU) PFAS",
+        UPPER(pa."ATTR (PAR) BERRY") AS "ATTR (PAR) BERRY",
+        UPPER(pa."ATTR (PAR) CARE") AS "ATTR (PAR) CARE",
+        UPPER(pa."ATTR (PAR) HEAT TRANSFER") AS "ATTR (PAR) HEAT TRANSFER",
+        UPPER(pa."ATTR (PAR) OTHER") AS "ATTR (PAR) OTHER",
+        UPPER(pa."ATTR (PAR) PAD PRINT") AS "ATTR (PAR) PAD PRINT",
+        UPPER(pa."ATTR (PAR) PRODUCT CAT") AS "ATTR (PAR) PRODUCT CAT",
+        UPPER(pa."ATTR (PAR) PRODUCT TYPE") AS "ATTR (PAR) PRODUCT TYPE",
+        UPPER(pa."ATTR (PAR) TRACKING") AS "ATTR (PAR) TRACKING",
+        UPPER(pa."ATTR (PAR) Z_BRAND") AS "ATTR (PAR) Z_BRAND",
+        UPPER(pa."ATTR (PAR) Z_CATEGORY") AS "ATTR (PAR) Z_CATEGORY",
+        UPPER(pa."ATTR (PAR) Z_GENDER") AS "ATTR (PAR) Z_GENDER",
+        UPPER(pa."ATTR (PAR) Z_VERTICAL") AS "ATTR (PAR) Z_VERTICAL",
+        UPPER(stkl.adv) as "Advertised Flag",
+        UPPER(p65.prop_65)                                 AS "PROP 65",
         b."ALT_KEY",
         b.id_loc                                    AS "ID_LOC",
-        b.CHILD_ITEM_STATUS                        AS "Child Item Status",
-        pd.PARENT_ITEM_STATUS                       AS "Parent Item Status",
-        /* placeholder until sourced */
-        /* Adjusted Parent Item Status via the CTE logic */
-        CASE 
+        UPPER(b.CHILD_ITEM_STATUS)                        AS "Child Item Status",
+        UPPER(pd.PARENT_ITEM_STATUS)                       AS "Parent Item Status",
+
+        UPPER(CASE 
             WHEN apit.cnt >= 1 THEN 'A'
             ELSE pd.PARENT_ITEM_STATUS
-        END AS "Adj_Parent_Item_Status"
+        END) AS "Adj_Parent_Item_Status"
 
     FROM ITMMAS_BASE b
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_COST_Bronze" cc ON b."COST CATEGORY" = cc.code_cat_cost
