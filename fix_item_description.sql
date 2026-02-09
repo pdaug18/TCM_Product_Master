@@ -60,12 +60,15 @@ HAVING ib.id_item LIKE '15812-01%';
 select * 
 from BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Bronze"
 where 
-id_item like '15812-01%'
+id_item like '174I%'
+-- 10861-01, 15812-01%
 AND seq_descr BETWEEN 800 AND 810;
 
 select ID_ITEM, DESCR_1, DESCR_2
 FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze"
-where id_item like '15812-01%';
+where id_item like '174I%'
+-- 10861-01, 15812-01%
+;
 
 -- ========== Final Query ==========
 WITH child_descriptions AS (
@@ -109,36 +112,6 @@ GROUP BY ib.id_item, ib.FLAG_STAT_ITEM, ib.DESCR_1, ib.DESCR_2, cd.child_descr_2
 -- HAVING ib.id_item LIKE '15812-01%';
 
 
--- ====== CASE STATEMENT TEST ======
-SELECT
-    ib.id_item,
-    ib.FLAG_STAT_ITEM AS PARENT_ITEM_STATUS,
-    CASE
-        WHEN COUNT(id.id_item) > 0 
-            THEN LISTAGG(id.descr_addl, '') WITHIN GROUP (ORDER BY id.SEQ_DESCR)
-    CASE
-        WHEN COUNT(id.id_item) = 0 
-        THEN COALESCE(
-            (
-                SELECT c.DESCR_2
-                FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" c
-                WHERE c.id_item LIKE ib.id_item
-                  AND c.id_item != ib.id_item
-                  AND c.DESCR_1 != 'PARENT ITEM FOR LABELS'
-                ORDER BY c.id_item
-                LIMIT 1
-            ),
-            'MISSING PARENT DESCRIPTION'
-        )
-    END AS "PARENT DESCRIPTION"
-FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
-LEFT JOIN (
-    SELECT id_item, descr_addl, SEQ_DESCR
-    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Bronze"
-    WHERE seq_descr BETWEEN 800 AND 810
-) id ON ib.id_item = id.id_item
-WHERE ib.code_comm = 'PAR'
-GROUP BY ib.id_item, ib.FLAG_STAT_ITEM;
 
 --- ========== Final Query V3 ==========
 
@@ -179,3 +152,25 @@ LEFT JOIN primary_descriptions pd ON ib.id_item = pd.id_item
 LEFT JOIN fallback_descriptions fd ON ib.id_item = fd.parent_id_item
 WHERE ib.code_comm = 'PAR';
 -- AND ib.id_item like '15812-01%';
+
+-- ========== Optimized Fallback Description Query ==========
+
+WITH PotentialChildren AS (
+    -- 1. First, select only the rows that can be children.
+    -- This reduces the number of rows to be scanned in the main join.
+    SELECT id_item, DESCR_2
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze"
+    WHERE DESCR_1 != 'PARENT ITEM FOR LABELS'
+)
+-- 2. Prepare the fallback description from a related child item
+SELECT 
+    p.id_item as parent_id_item,
+    c.DESCR_2 as fallback_description
+FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" p
+-- Use an INNER JOIN as we only need parents with at least one child
+JOIN PotentialChildren c
+    ON c.id_item LIKE p.id_item || '%' -- This LIKE is the main bottleneck, but now runs on a smaller dataset
+    AND c.id_item != p.id_item         -- Exclude the parent itself
+WHERE p.code_comm = 'PAR'
+-- Efficiently get only the first valid child description for each parent
+QUALIFY ROW_NUMBER() OVER(PARTITION BY p.id_item ORDER BY c.id_item) = 1;
