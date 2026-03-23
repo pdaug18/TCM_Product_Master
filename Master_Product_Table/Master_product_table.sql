@@ -9,6 +9,8 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	RATIO_STK_PUR,
 	"VERTICAL (Calc)",
 	"CATEGORY (Calc)",
+	"Current Cost",
+	"Standard Cost",
 	"Product Name/Parent ID",
 	"PARENT DESCRIPTION",
 	"ATTR (SKU) CERT_NUM",
@@ -18,6 +20,13 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	"ATTR (SKU) TARIFF_CODE",
 	"ATTR (SKU) UPC_CODE",
 	"ATTR (SKU) PFAS",
+	"ATTR (SKU) CLASS",
+	"ATTR (SKU) PPC",
+	"ATTR (SKU) PRIOR COMMODITY",
+	"ATTR (SKU) RBN_WC",
+	"ATTR (SKU) REASON",
+	"ATTR (SKU) REPLACEMENT",
+	"ATTR (SKU) REQUESTOR",
 	"ATTR (PAR) BERRY",
 	"ATTR (PAR) CARE",
 	"ATTR (PAR) HEAT TRANSFER",
@@ -71,7 +80,16 @@ sku_attributes AS (
         MAX(CASE WHEN av.id_attr = 'UPC_CODE'    THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) UPC_CODE",
         MAX(CASE WHEN av.id_attr = 'CERT_NUM'    THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) CERT_NUM",
         MAX(CASE WHEN av.id_attr = 'TARIFF_CODE' THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) TARIFF_CODE",
-        MAX(CASE WHEN av.id_attr = 'PFAS'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) PFAS"
+        MAX(CASE WHEN av.id_attr = 'PFAS'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) PFAS",
+        MAX(CASE WHEN av.id_attr = 'CLASS'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) CLASS",
+        MAX(CASE WHEN av.id_attr = 'PPC'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) PPC",
+        MAX(CASE WHEN av.id_attr = 'PRIOR COMMODITY'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) PRIOR COMMODITY",
+        MAX(CASE WHEN av.id_attr = 'RBN_WC'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) RBN_WC",
+        MAX(CASE WHEN av.id_attr = 'REASON'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) REASON",
+        MAX(CASE WHEN av.id_attr = 'REPLACEMENT'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) REPLACEMENT",
+        MAX(CASE WHEN av.id_attr = 'REQUESTOR'        THEN av.val_string_attr ELSE '' END) AS "ATTR (SKU) REQUESTOR",
+        
+        
     -- FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
     FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic" ib
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Bronze" av
@@ -241,7 +259,8 @@ Adjusted_Parent_Item_Status AS (
         WHERE b.CHILD_ITEM_STATUS = 'A' AND pd.PARENT_ITEM_STATUS = 'O'
     ) adj
     GROUP BY adj."Product ID/SKU" 
-)   
+)
+        
     SELECT
         b.id_item                                   AS "Product ID/SKU",
         UPPER(b."Product Description") AS "Product Description",
@@ -253,12 +272,16 @@ Adjusted_Parent_Item_Status AS (
         b."RATIO_STK_PUR",
         UPPER(v.vertical)                                  AS "VERTICAL (Calc)",
         UPPER(c.category)                                  AS "CATEGORY (Calc)",
+        ic.COST_MATL_ACCUM_CRNT "Current Cost",
+        ic.COST_MATL_ACCUM_STD as "Standard Cost",
+        
         s."ATTR (SKU) ID_PARENT"                    AS "Product Name/Parent ID",
         UPPER(CASE
             WHEN "PRDT CAT DESCR" ILIKE '%FABRIC%' AND pd."PARENT DESCRIPTION" IS NULL
             THEN b."Product Description"
             ELSE COALESCE(pd."PARENT DESCRIPTION", 'MISSING DESCRIPTION - UPDATE TCM')
         END) AS "PARENT DESCRIPTION",
+
         UPPER(s."ATTR (SKU) CERT_NUM") AS "ATTR (SKU) CERT_NUM",
         UPPER(s."ATTR (SKU) COLOR") AS "ATTR (SKU) COLOR",
         UPPER(s."ATTR (SKU) SIZE") AS "ATTR (SKU) SIZE",
@@ -266,6 +289,13 @@ Adjusted_Parent_Item_Status AS (
         UPPER(s."ATTR (SKU) TARIFF_CODE") AS "ATTR (SKU) TARIFF_CODE",
         UPPER(s."ATTR (SKU) UPC_CODE") AS "ATTR (SKU) UPC_CODE",
         UPPER(s."ATTR (SKU) PFAS") AS "ATTR (SKU) PFAS",
+        UPPER(s."ATTR (SKU) PFAS") AS "ATTR (SKU) CLASS",
+        UPPER(s."ATTR (SKU) PFAS") AS "ATTR (SKU) PPC",
+        UPPER(s."ATTR (SKU) PFAS") AS "ATTR (SKU) PRIOR COMMODITY",
+        UPPER(s."ATTR (SKU) PFAS") AS "ATTR (SKU) RBN_WC",
+        UPPER(s."ATTR (SKU) PFAS") AS "ATTR (SKU) REASON",
+        UPPER(s."ATTR (SKU) PFAS") AS "ATTR (SKU) REPLACEMENT",
+        UPPER(s."ATTR (SKU) PFAS") AS "ATTR (SKU) REQUESTOR",
         UPPER(pa."ATTR (PAR) BERRY") AS "ATTR (PAR) BERRY",
         UPPER(pa."ATTR (PAR) CARE") AS "ATTR (PAR) CARE",
         UPPER(pa."ATTR (PAR) HEAT TRANSFER") AS "ATTR (PAR) HEAT TRANSFER",
@@ -284,13 +314,16 @@ Adjusted_Parent_Item_Status AS (
         b.id_loc                                    AS "ID_LOC",
         UPPER(b.CHILD_ITEM_STATUS)                        AS "Child Item Status",
         UPPER(pd.PARENT_ITEM_STATUS)                       AS "Parent Item Status",
-
+        /* placeholder until sourced */
+        /* Adjusted Parent Item Status via the CTE logic */
         UPPER(CASE 
             WHEN apit.cnt >= 1 THEN 'A'
             ELSE pd.PARENT_ITEM_STATUS
         END) AS "Adj_Parent_Item_Status"
 
     FROM ITMMAS_BASE b
+    -- LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC" il ON b.id_item = il.id_item
+    LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_COST_Bronze" ic on b.id_item = ic.id_item 
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_COST_Bronze" cc ON b."COST CATEGORY" = cc.code_cat_cost
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc ON b."NSA_PRODUCT CATEGORY/VERTICAL" = pc.code_cat_prdt AND pc.code_type_cust IS NULL
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_STK_LIST_Bronze" stkl on b.id_item = stkl.id_item 
