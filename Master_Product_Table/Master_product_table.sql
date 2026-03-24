@@ -59,7 +59,20 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	"COST_TOTAL_ACCUM_CRNT",
 	"COST_TOTAL_ACCUM_STD",
 	"COST_VB_VA_CRNT",
-	"COST_VB_VA_STD"
+	"COST_VB_VA_STD",
+    "ID_LOC_SRC_COST_STD",
+    "TYPE_COST",
+    "DATE_ACCUM_COST",
+    "DATE_CHG_COST_VA",
+    "DATE_STD_COST",
+    "WGT_ITEM",
+    "RATIO_STK_PRICE",
+    "CODE_UM_PRICE",
+    "CODE_UM_PUR",
+    "CODE_UM_STK",
+    "CODE_USER_1_IM",
+    "CODE_USER_2_IM",
+    "CODE_USER_3_IM"
 ) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
  as
 /* ========================================
@@ -75,7 +88,16 @@ WITH ITMMAS_BASE AS (
         ib.code_comm,
         ib.id_loc,
         ib.FLAG_STAT_ITEM AS CHILD_ITEM_STATUS,
-        ib."RATIO_STK_PUR"
+        ib."RATIO_STK_PUR",
+        ib.type_cost,
+        ib.wgt_item,
+        ib.ratio_stk_price,
+        ib.code_um_price,
+        ib.code_um_pur,
+        ib.code_um_stk,
+        ib.code_user_1_im,
+        ib.code_user_2_im,
+        ib.code_user_3_im
     -- FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib 
     FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic" ib
     WHERE ib."is_deleted" = 0
@@ -302,6 +324,19 @@ Adjusted_Parent_Item_Status AS (
         ic.COST_TOTAL_ACCUM_STD,
         ic.COST_VB_VA_CRNT,
         ic.COST_VB_VA_STD,
+        ic.id_loc_src_cost_std as "ID_LOC_SRC_COST_STD",
+        b.type_cost as "TYPE_COST",
+        ic.date_accum_cost as "DATE_ACCUM_COST",
+        ic.date_chg_cost_va as "DATE_CHG_COST_VA",
+        ic.date_std_cost as "DATE_STD_COST",
+        b.wgt_item as "WGT_ITEM",
+        b.ratio_stk_price as "RATIO_STK_PRICE",
+        b.code_um_price as "CODE_UM_PRICE",
+        b.code_um_pur as "CODE_UM_PUR",
+        b.code_um_stk as "CODE_UM_STK",
+        b.code_user_1_im as "CODE_USER_1_IM",
+        b.code_user_2_im as "CODE_USER_2_IM",
+        b.code_user_3_im as "CODE_USER_3_IM",
         
         s."ATTR (SKU) ID_PARENT"                    AS "Product Name/Parent ID",
         UPPER(CASE

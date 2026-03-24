@@ -38,6 +38,15 @@ FinishedGoods AS (
             ELSE fg.descr_1
         END AS item_description,
         il.flag_source,
+        il.flag_stk,
+        il.flag_track_bin,
+        il.flag_cntrl,
+        il.flag_fulfill_type,
+        il.flag_plcy_ord,
+        il.id_planner,
+        il.type_loc,
+        il.id_rte,
+        il.flag_iss_auto_sf,
         il.QTY_ONHD,
         il.QTY_ALLOC,
         il.QTY_ONORD
@@ -115,6 +124,15 @@ ItemSourceData AS (
         fg.id_loc,
         fg.item_description,
         fg.flag_source,
+        fg.flag_stk,
+        fg.flag_track_bin,
+        fg.flag_cntrl,
+        fg.flag_fulfill_type,
+        fg.flag_plcy_ord,
+        fg.id_planner,
+        fg.type_loc,
+        fg.id_rte,
+        fg.flag_iss_auto_sf,
         fg.QTY_ONHD,
         fg.QTY_ALLOC,
         fg.QTY_ONORD,
@@ -132,8 +150,7 @@ ItemSourceData AS (
             WHEN fg.flag_source = 'P' THEN 'Y'
             WHEN sod.Qty_Rel_PND > 0 OR sod.Qty_Start_PND > 0 THEN 'Y'
             ELSE 'N'
-        END as flag_show,
-        fg.flag_source as flag_stk
+        END as flag_show
     FROM
         FinishedGoods fg
     LEFT JOIN
@@ -175,6 +192,15 @@ SELECT
     isd.QTY_ONHD,
     isd.QTY_ALLOC,
     isd.QTY_ONORD,
+    isd.flag_stk,
+    isd.flag_track_bin,
+    isd.flag_cntrl,
+    isd.flag_fulfill_type,
+    isd.flag_plcy_ord,
+    isd.id_planner,
+    isd.type_loc,
+    isd.id_rte,
+    isd.flag_iss_auto_sf,
     CASE
         WHEN isd.flag_stk IN ('S', 'M') OR isd.flag_show = 'Y' THEN isd.Qty_Start + isd.Qty_Start_PND
         ELSE 0
