@@ -69,7 +69,6 @@ RankedVendors AS (
         BRONZE_DATA.TCM_BRONZE."ITMMAS_VND_Bronze" iv
     LEFT JOIN
         BRONZE_DATA.TCM_BRONZE."VENMAS_PAYTO_Bronze" vp ON LTRIM(iv.id_vnd_payto) = LTRIM(vp.id_vnd)
-            WHERE id_item = 'DF2-173HD-BK-4X'
 ),
 
 VendorSources AS (
@@ -239,11 +238,38 @@ FROM
     ItemSourceData isd
 )
 SELECT 
-    fd.*,
+    fd.id_item                  AS "Product_ID_SKU",
+    fd.item_description         AS "Item_Description",
+    fd.id_loc                   AS "Location_ID",
+    fd.flag_source              AS "Item_Source_Flag",
+    fd.primary_source           AS "Primary_Source",
+    fd.NSA_Manufactured         AS "NSA_Manufactured",
+    fd.QTY_ONHD                 AS "Qty_On_Hand",
+    fd.QTY_ALLOC                AS "Qty_Allocated",
+    fd.QTY_ONORD                AS "Qty_On_Order",
+    fd.flag_stk                 AS "Item_Stock_Flag",
+    fd.flag_track_bin           AS "Item_Bin_Tracking",
+    fd.flag_cntrl               AS "Item_Controlled_Noncontrolled_Flag",
+    fd.flag_fulfill_type        AS "Item_Fulfillment_Type",
+    fd.flag_plcy_ord            AS "Item_Order_Policy_Flag",
+    fd.id_planner               AS "Item_Planned_Classification",
+    fd.type_loc                 AS "Item_Primary_Location_Type",
+    fd.id_rte                   AS "Item_Routing_Number",
+    fd.flag_iss_auto_sf         AS "Item_Shop_Floor_Auto_Issue_Flag",
+    fd.id_loc_home              AS "Item_Home_Location_Code",
+    fd.level_rop                AS "Item_Inventory_Reorder_Point",
+    fd.qty_min_rop              AS "Item_Inventory_Reorder_Point_Minimum",
+    fd.qty_mult_ord_rop         AS "Item_Inventory_Reorder_Point_Mult",
+    fd.qty_ord_econ             AS "Item_Order_Quantity_Econ",
+    fd.lt_rop                   AS "Item_Reorder_Point_Lead_Time",
+    fd.Qty_Cut                  AS "Qty_Cut",
+    fd.Qty_Rel                  AS "Qty_Released",
     CASE 
         WHEN fd.primary_source = ln.loc_name THEN 'P'
         ELSE 'S'
-    END as source_location_match_flag
+    END                         AS "Source_Location_Match_Flag"
 FROM FinalData fd
 LEFT JOIN LocationNames ln ON fd.id_loc = ln.id_loc
 order by fd.id_item, fd.id_loc;
+
+
