@@ -45,7 +45,21 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
 	ID_LOC,
 	"Child Item Status",
 	"Parent Item Status",
-	"Adj_Parent_Item_Status"
+	"Adj_Parent_Item_Status",
+	"COST_FB_VA_CRNT",
+	"COST_FB_VA_STD",
+	"COST_MATL_VA_CRNT", 
+	"COST_LABOR_VA_CRNT",
+	"COST_MATL_VA_STD",
+	"COST_LABOR_VA_STD",
+	"COST_OUTP_VA_CRNT",
+	"COST_USER_VA_CRNT",
+	"COST_OUTP_VA_STD",
+	"COST_USER_VA_STD",
+	"COST_TOTAL_ACCUM_CRNT",
+	"COST_TOTAL_ACCUM_STD",
+	"COST_VB_VA_CRNT",
+	"COST_VB_VA_STD"
 ) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
  as
 /* ========================================
@@ -272,8 +286,22 @@ Adjusted_Parent_Item_Status AS (
         b."RATIO_STK_PUR",
         UPPER(v.vertical)                                  AS "VERTICAL (Calc)",
         UPPER(c.category)                                  AS "CATEGORY (Calc)",
-        ic.COST_MATL_ACCUM_CRNT "Current Cost",
-        ic.COST_MATL_ACCUM_STD as "Standard Cost",
+        ic.COST_MATL_ACCUM_CRNT ,
+        ic.COST_MATL_ACCUM_STD ,
+        ic.COST_FB_VA_CRNT,
+        ic.COST_FB_VA_STD,
+        ic.COST_MATL_VA_CRNT, 
+        ic.COST_LABOR_VA_CRNT,
+        ic.COST_MATL_VA_STD,
+        ic.COST_LABOR_VA_STD,
+        ic.COST_OUTP_VA_CRNT,
+        ic.COST_USER_VA_CRNT,
+        ic.COST_OUTP_VA_STD,
+        ic.COST_USER_VA_STD,
+        ic.COST_TOTAL_ACCUM_CRNT,
+        ic.COST_TOTAL_ACCUM_STD,
+        ic.COST_VB_VA_CRNT,
+        ic.COST_VB_VA_STD,
         
         s."ATTR (SKU) ID_PARENT"                    AS "Product Name/Parent ID",
         UPPER(CASE
