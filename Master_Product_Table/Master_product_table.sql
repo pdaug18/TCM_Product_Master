@@ -72,7 +72,12 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
     "CODE_UM_STK",
     "CODE_USER_1_IM",
     "CODE_USER_2_IM",
-    "CODE_USER_3_IM"
+    "CODE_USER_3_IM",
+    "DATE_QUOTE",
+    "ID_VND_ORDFM",
+    "ID_VND_PAYTO",
+    "ID_ITEM_VND",
+    "CODE_UM_VND"
 ) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
  as
 /* ========================================
@@ -277,6 +282,26 @@ prop_65_calc AS (
     GROUP BY p.id_item_par
 ),
 
+/* ========================================
+   PRIMARY VENDOR — picks primary vendor per item (flag_vnd_prim = 'P' first)
+   ======================================== */
+primary_vendor AS (
+    SELECT
+        iv.id_item,
+        iv.date_quote,
+        iv.id_vnd_ordfm,
+        iv.id_vnd_payto,
+        iv.id_item_vnd,
+        iv.code_um_vnd
+        /*
+        ROW_NUMBER() OVER (
+            PARTITION BY iv.id_item
+            ORDER BY CASE WHEN iv.flag_vnd_prim = 'P' THEN 0 ELSE 1 END, iv.id_vnd_payto
+        ) AS rn */
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_VND_Bronze" iv
+    WHERE iv.flag_vnd_prim = 'P'
+),
+
 /*  ========================================
    Adjusted Parent Item Status Logic
    =======================================*/
@@ -337,6 +362,11 @@ Adjusted_Parent_Item_Status AS (
         b.code_user_1_im as "CODE_USER_1_IM",
         b.code_user_2_im as "CODE_USER_2_IM",
         b.code_user_3_im as "CODE_USER_3_IM",
+        pv.date_quote    AS "DATE_QUOTE",
+        pv.id_vnd_ordfm  AS "ID_VND_ORDFM",
+        pv.id_vnd_payto  AS "ID_VND_PAYTO",
+        pv.id_item_vnd   AS "ID_ITEM_VND",
+        pv.code_um_vnd   AS "CODE_UM_VND",
         
         s."ATTR (SKU) ID_PARENT"                    AS "Product Name/Parent ID",
         UPPER(CASE
@@ -396,5 +426,6 @@ Adjusted_Parent_Item_Status AS (
     LEFT JOIN category_calc      c   ON b.id_item = c.id_item
     LEFT JOIN vertical_calc      v   ON b.id_item = v.id_item
     LEFT JOIN prop_65_calc       p65 ON s."ATTR (SKU) ID_PARENT" = p65.id_item_par
+    LEFT JOIN primary_vendor     pv  ON b.id_item = pv.id_item 
     LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Product ID/SKU" 
     WHERE b.code_comm <> 'PAR';
