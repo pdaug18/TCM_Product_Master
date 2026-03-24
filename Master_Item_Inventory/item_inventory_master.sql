@@ -118,6 +118,18 @@ InHouseManufacturedItems AS (
     WHERE flag_source = 'M'
 ),
 
+ReorderParams AS (
+    SELECT
+        ir.id_item,
+        ir.id_loc_home,
+        ir.level_rop,
+        ir.qty_min_rop,
+        ir.qty_mult_ord_rop,
+        ir.qty_ord_econ,
+        ir.lt_rop
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_REORD_Bronze" ir
+),
+
 ItemSourceData AS (
     SELECT
         fg.id_item,
@@ -150,7 +162,13 @@ ItemSourceData AS (
             WHEN fg.flag_source = 'P' THEN 'Y'
             WHEN sod.Qty_Rel_PND > 0 OR sod.Qty_Start_PND > 0 THEN 'Y'
             ELSE 'N'
-        END as flag_show
+        END as flag_show,
+        rp.id_loc_home,
+        rp.level_rop,
+        rp.qty_min_rop,
+        rp.qty_mult_ord_rop,
+        rp.qty_ord_econ,
+        rp.lt_rop
     FROM
         FinishedGoods fg
     LEFT JOIN
@@ -161,6 +179,8 @@ ItemSourceData AS (
         InHouseManufacturedItems imi ON fg.id_item = imi.id_item
     LEFT JOIN
         ShopOrderData sod ON fg.id_item = sod.id_item_par AND fg.id_loc = sod.id_loc
+    LEFT JOIN
+        ReorderParams rp ON fg.id_item = rp.id_item AND fg.id_loc = rp.id_loc_home
     
 ),
 FinalData AS (
@@ -201,6 +221,12 @@ SELECT
     isd.type_loc,
     isd.id_rte,
     isd.flag_iss_auto_sf,
+    isd.id_loc_home,
+    isd.level_rop,
+    isd.qty_min_rop,
+    isd.qty_mult_ord_rop,
+    isd.qty_ord_econ,
+    isd.lt_rop,
     CASE
         WHEN isd.flag_stk IN ('S', 'M') OR isd.flag_show = 'Y' THEN isd.Qty_Start + isd.Qty_Start_PND
         ELSE 0
@@ -220,7 +246,4 @@ SELECT
     END as source_location_match_flag
 FROM FinalData fd
 LEFT JOIN LocationNames ln ON fd.id_loc = ln.id_loc
--- WHERE fd.id_item like 'DF2-173HD-BK-4X'
 order by fd.id_item, fd.id_loc;
-
-
