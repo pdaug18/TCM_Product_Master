@@ -20,7 +20,7 @@ Logic Breakdown:
 CREATE OR REPLACE DYNAMIC TABLE SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER
 TARGET_LAG = 'DOWNSTREAM' -- This ensures the table is refreshed based on changes in the source data
 WAREHOUSE = 'COMPUTE_WH'
-AS;
+AS
 WITH
 LocationNames AS (
     SELECT '10' as id_loc, 'CLE' as loc_name UNION ALL

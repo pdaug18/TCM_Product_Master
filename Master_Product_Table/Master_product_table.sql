@@ -77,7 +77,13 @@ create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
     "ID_VND_ORDFM",
     "ID_VND_PAYTO",
     "ID_ITEM_VND",
-    "CODE_UM_VND"
+    "CODE_UM_VND",
+    "LEVEL_ROP",
+    "QTY_MIN_ROP",
+    "QTY_MULT_ORD_ROP",
+    "ID_LOC_HOME",
+    "QTY_ORD_ECON",
+    "LT_ROP"
 ) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
  as
 /* ========================================
@@ -302,6 +308,21 @@ primary_vendor AS (
     WHERE iv.flag_vnd_prim = 'P'
 ),
 
+/* ========================================
+   REORDER PARAMS — per item/location from itmmas_reord
+   ======================================== */
+reorder_params AS (
+    SELECT
+        ir.id_item,
+        ir.level_rop,
+        ir.qty_min_rop,
+        ir.qty_mult_ord_rop,
+        ir.id_loc_home,
+        ir.qty_ord_econ,
+        ir.lt_rop
+    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_REORD_Bronze" ir
+),
+
 /*  ========================================
    Adjusted Parent Item Status Logic
    =======================================*/
@@ -367,6 +388,12 @@ Adjusted_Parent_Item_Status AS (
         pv.id_vnd_payto  AS "ID_VND_PAYTO",
         pv.id_item_vnd   AS "ID_ITEM_VND",
         pv.code_um_vnd   AS "CODE_UM_VND",
+        rp.level_rop         AS "LEVEL_ROP",
+        rp.qty_min_rop       AS "QTY_MIN_ROP",
+        rp.qty_mult_ord_rop  AS "QTY_MULT_ORD_ROP",
+        rp.id_loc_home       AS "ID_LOC_HOME",
+        rp.qty_ord_econ      AS "QTY_ORD_ECON",
+        rp.lt_rop            AS "LT_ROP",
         
         s."ATTR (SKU) ID_PARENT"                    AS "Product Name/Parent ID",
         UPPER(CASE
@@ -427,5 +454,6 @@ Adjusted_Parent_Item_Status AS (
     LEFT JOIN vertical_calc      v   ON b.id_item = v.id_item
     LEFT JOIN prop_65_calc       p65 ON s."ATTR (SKU) ID_PARENT" = p65.id_item_par
     LEFT JOIN primary_vendor     pv  ON b.id_item = pv.id_item 
+    LEFT JOIN reorder_params     rp  ON b.id_item = rp.id_item
     LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Product ID/SKU" 
     WHERE b.code_comm <> 'PAR';
