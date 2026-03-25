@@ -46,6 +46,7 @@ create or replace view BRONZE_DATA.TCM_BRONZE.ALL_SALES_HIST(
 	"COST CAT DESCR",
 	"PRODUCT CATEGORY/VERTICAL",
 	"PRDT CAT DESCR",
+	"TCM Historical Vertical",
 	"VERTICAL (Calc)",
 	"CATEGORY (Calc)",
 	"Product Name/Parent ID",
@@ -69,6 +70,8 @@ create or replace view BRONZE_DATA.TCM_BRONZE.ALL_SALES_HIST(
 	"ATTR (PAR) Z_CATEGORY",
 	"ATTR (PAR) Z_GENDER",
 	"ATTR (PAR) Z_VERTICAL",
+	"Advertised Flag",
+	"Planned Classification",
 	"PROP 65",
 	"INVOICE DATE",
 	ALT_KEY,
@@ -121,6 +124,7 @@ SELECT
     COALESCE(mpt."COST CAT DESCR", 'INVALID COST CATEGORY') AS "COST CAT DESCR",
     mpt."PRODUCT CATEGORY/VERTICAL",
     COALESCE(mpt."PRDT CAT DESCR", 'INVALID PRODUCT CATEGORY') AS "PRDT CAT DESCR",
+    sls."TCM Historical Vertical",
     mpt."VERTICAL (Calc)",
     mpt."CATEGORY (Calc)",
     mpt."Product Name/Parent ID",
@@ -144,6 +148,8 @@ SELECT
     mpt."ATTR (PAR) Z_CATEGORY",
     mpt."ATTR (PAR) Z_GENDER",
     mpt."ATTR (PAR) Z_VERTICAL",
+    mpt."Advertised Flag",
+	il.id_planner as "Planned Classification",
     mpt."PROP 65",
     sls."INVOICE DATE" AS "INVOICE DATE",
     mpt."ALT_KEY",
@@ -173,6 +179,7 @@ left join (
         ROW_NUMBER() OVER (PARTITION BY id_item ORDER BY "rowid" DESC) as rn
     FROM "BRONZE_DATA"."TCM_BRONZE"."ITMMAS_REORD_Bronze"
 ) r on sls."Product ID/SKU" = r.id_item and sls.id_loc = r.id_loc_home and r.rn = 1
+LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC_Dynamic" il on sls."Product ID/SKU" = il.id_item and sls.id_loc = il.id_loc
 left join "BRONZE_DATA"."TCM_BRONZE"."CUSMAS_SHIPTO_Bronze" cst on sls."Customer ID" = cst.id_cust and sls.seq_shipto = cst.seq_shipto
 left join "BRONZE_DATA"."TCM_BRONZE"."CUSMAS_SOLDTO_Bronze" st on ltrim(sls."Customer ID") = ltrim(st.id_cust)
 left join "BRONZE_DATA"."TCM_BRONZE"."CUST_GROUP_CODE_Bronze" gc on st.code_user_3_ar = gc.group_code
