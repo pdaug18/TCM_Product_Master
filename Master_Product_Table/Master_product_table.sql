@@ -1,84 +1,8 @@
-create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE(
-	"Product ID/SKU",
-	"Product Description",
-	"COST CATEGORY ID",
-	"COST CAT DESCR",
-	"PRODUCT CATEGORY/VERTICAL",
-	"PRDT CAT DESCR",
-	"COMMODITY CODE",
-	RATIO_STK_PUR,
-	"VERTICAL (Calc)",
-	"CATEGORY (Calc)",
-	"Cost_Material_Accumulated_Current",
-	"Cost_Material_Accumulated_Standard",
-	"Cost_Freight_Current",
-	"Cost_Freight_Standard",
-	"Cost_Material_Current",
-	"Cost_Labor_Current",
-	"Cost_Material_Standard",
-	"Cost_Labor_Standard",
-	"Cost_Outside_Service_Current",
-	"Cost_User_Current",
-	"Cost_Outside_Service_Standard",
-	"Cost_User_Field_Standard",
-	"Cost_Total_Current",
-	"Cost_Total_Standard",
-	"Cost_Variable_Burden_Current",
-	"Cost_Variable_Burden_Standard",
-	"Cost_Location_Standard_Cost_Source_Location",
-	"Cost_Cost_Type",
-	"Date_Cost_Accumulated",
-	"Date_Cost_Changed",
-	"Date_Cost_Standard",
-	"Item_Weight",
-	"Ratio_Price_to_Stock",
-	"Unit_of_Measure_Price",
-	"Unit_of_Measure_Purchase",
-	"Unit_of_Measure_Stock",
-	"CODE_USER_1",
-	"CODE_USER_2",
-	"CODE_USER_3",
-	"Date_Last_Vendor_Quote",
-	"Item_Primary_Vendor_Primary_Order_From_ID",
-	"Item_Primary_Vendor_Primary_Pay_To_ID",
-	"Item_Primary_Vendor_Vendor_Item_ID",
-	"Unit_of_Measure_Vendor_Code",
-	"Product Name/Parent ID",
-	"PARENT DESCRIPTION",
-	"ATTR (SKU) CERT_NUM",
-	"ATTR (SKU) COLOR",
-	"ATTR (SKU) SIZE",
-	"ATTR (SKU) LENGTH",
-	"ATTR (SKU) TARIFF_CODE",
-	"ATTR (SKU) UPC_CODE",
-	"ATTR (SKU) PFAS",
-	"ATTR (SKU) CLASS",
-	"ATTR (SKU) PPC",
-	"ATTR (SKU) PRIOR COMMODITY",
-	"ATTR (SKU) RBN_WC",
-	"ATTR (SKU) REASON",
-	"ATTR (SKU) REPLACEMENT",
-	"ATTR (SKU) REQUESTOR",
-	"ATTR (PAR) BERRY",
-	"ATTR (PAR) CARE",
-	"ATTR (PAR) HEAT TRANSFER",
-	"ATTR (PAR) OTHER",
-	"ATTR (PAR) PAD PRINT",
-	"ATTR (PAR) PRODUCT CAT",
-	"ATTR (PAR) PRODUCT TYPE",
-	"ATTR (PAR) TRACKING",
-	"ATTR (PAR) Z_BRAND",
-	"ATTR (PAR) Z_CATEGORY",
-	"ATTR (PAR) Z_GENDER",
-	"ATTR (PAR) Z_VERTICAL",
-	"Advertised Flag",
-	"PROP 65",
-	ALT_KEY,
-	ID_LOC,
-	"Child Item Status",
-	"Parent Item Status",
-	"Adj_Parent_Item_Status"
-) target_lag = 'DOWNSTREAM' refresh_mode = AUTO initialize = ON_CREATE warehouse = ELT_DEFAULT
+create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE
+target_lag = 'DOWNSTREAM' 
+refresh_mode = AUTO 
+initialize = ON_CREATE 
+warehouse = ELT_DEFAULT
  as
 /* ========================================
    ITMMAS_BASE — Base item master (kept)
@@ -320,6 +244,43 @@ Adjusted_Parent_Item_Status AS (
         WHERE b.CHILD_ITEM_STATUS = 'A' AND pd.PARENT_ITEM_STATUS = 'O'
     ) adj
     GROUP BY adj."Product ID/SKU" 
+),
+
+/* ========================================
+   ITEM PLANNER — single id_planner per id_item
+   Ranking priority:
+     1. flag_source = 'M' (manufactured) over 'P' (purchased)
+     2. Within same flag_source: location '10' (Cleveland HQ) first
+     3. Then alphabetically by id_loc for any remaining ties
+   ======================================== */
+item_planner AS (
+    SELECT
+        id_item,
+        id_loc           AS primary_mfg_loc,
+        id_planner
+        -- CASE
+        --     WHEN mfg_loc_count = 1              THEN 'SINGLE_MFG_LOC'
+        --     WHEN mfg_loc_count > 1
+        --      AND id_loc = '10'                  THEN 'MULTI_MFG_LOC_HQ'
+        --     WHEN mfg_loc_count > 1
+        --      AND id_loc <> '10'                 THEN 'MULTI_MFG_NO_PRIMARY'
+        -- END              AS PRIMARY_LOC_FLAG
+    FROM (
+        SELECT
+            il.id_item,
+            il.id_loc,
+            il.id_planner,
+            ROW_NUMBER() OVER (
+                PARTITION BY il.id_item
+                ORDER BY
+                    CASE WHEN il.flag_source = 'M' THEN 0 ELSE 1 END,
+                    CASE WHEN il.id_loc = '10'     THEN 0 ELSE 1 END,
+                    il.id_loc
+            ) AS rn
+        FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC_Bronze" il
+        WHERE il.flag_source IN ('M', 'P')
+    ) ranked
+    WHERE rn = 1
 )
         
     SELECT
@@ -411,7 +372,9 @@ Adjusted_Parent_Item_Status AS (
         UPPER(CASE 
             WHEN apit.cnt >= 1 THEN 'A'
             ELSE pd.PARENT_ITEM_STATUS
-        END)                                        AS "Adj_Parent_Item_Status"
+        END)                                        AS "Adj_Parent_Item_Status",
+        ip.id_planner                               AS "ID_PLANNER"
+        -- ip.PRIMARY_LOC_FLAG                         AS "PRIMARY_LOC_FLAG"
 
     FROM ITMMAS_BASE b
     -- LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC" il ON b.id_item = il.id_item
@@ -426,6 +389,6 @@ Adjusted_Parent_Item_Status AS (
     LEFT JOIN vertical_calc      v   ON b.id_item = v.id_item
     LEFT JOIN prop_65_calc       p65 ON s."ATTR (SKU) ID_PARENT" = p65.id_item_par
     LEFT JOIN primary_vendor     pv  ON b.id_item = pv.id_item
-    LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Product ID/SKU" 
+    LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Product ID/SKU"
+    LEFT JOIN item_planner        ip  ON b.id_item = ip.id_item
     WHERE b.code_comm <> 'PAR';
-
