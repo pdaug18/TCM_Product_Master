@@ -12,7 +12,7 @@ ORDER BY planner_count DESC;
 SELECT "Product ID/SKU", "ID_LOC", "Child Item Status", "ID_PLANNER"
 FROM SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE
 WHERE "ID_PLANNER" IS NULL
-ORDER BY "Product ID/SKU";
+AND "Product ID/SKU" = 'C04UPLG5503'
 
 -- Summary: how many items have vs. lack a planner  --! 266 items with null planner, why !?
 SELECT
@@ -119,3 +119,8 @@ AND EXISTS (
     WHERE il.id_item = mpt."Product ID/SKU"
     AND il.flag_source IN ('M','P')
 );
+
+
+select * 
+from BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC_Bronze"
+where id_item = 'C04UPLG5503'

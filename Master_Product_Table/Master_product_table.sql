@@ -258,13 +258,6 @@ item_planner AS (
         id_item,
         id_loc           AS primary_mfg_loc,
         id_planner
-        -- CASE
-        --     WHEN mfg_loc_count = 1              THEN 'SINGLE_MFG_LOC'
-        --     WHEN mfg_loc_count > 1
-        --      AND id_loc = '10'                  THEN 'MULTI_MFG_LOC_HQ'
-        --     WHEN mfg_loc_count > 1
-        --      AND id_loc <> '10'                 THEN 'MULTI_MFG_NO_PRIMARY'
-        -- END              AS PRIMARY_LOC_FLAG
     FROM (
         SELECT
             il.id_item,
