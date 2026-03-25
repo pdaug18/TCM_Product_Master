@@ -70,7 +70,7 @@ WITH BASE AS (
         mpt."ATTR (PAR) Z_GENDER",
         mpt."ATTR (PAR) Z_VERTICAL",
         mpt."Advertised Flag",
-        -- il.id_planner                                                           AS "Planned Classification",
+        il.id_planner                                                           AS "Planned Classification",
         mpt."PROP 65",
         sls."INVOICE DATE"                                                      AS "INVOICE DATE",
         mpt."ALT_KEY",
@@ -106,9 +106,9 @@ WITH BASE AS (
         ON sls."Product ID/SKU" = r.id_item
        AND sls.id_loc = r.id_loc_home
        AND r.rn = 1
-    -- LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC_Dynamic" il
-    --     ON sls."Product ID/SKU" = il.id_item
-    --    AND sls.id_loc = il.id_loc
+    LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC_Dynamic" il
+        ON sls."Product ID/SKU" = il.id_item
+       AND sls.id_loc = il.id_loc
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."CUSMAS_SHIPTO_Bronze" cst
         ON sls."Customer ID" = cst.id_cust
        AND sls.seq_shipto = cst.seq_shipto
