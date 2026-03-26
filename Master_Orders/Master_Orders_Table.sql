@@ -1,4 +1,4 @@
-CREATE OR REPLACE DYNAMIC TABLE SILVER_DATA.TCM_SILVER.MASTER_SHIPMENT_TABLE
+CREATE OR REPLACE DYNAMIC TABLE SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE
     TARGET_LAG   = 'DOWNSTREAM'
     REFRESH_MODE = AUTO
     INITIALIZE   = ON_CREATE
@@ -6,13 +6,12 @@ CREATE OR REPLACE DYNAMIC TABLE SILVER_DATA.TCM_SILVER.MASTER_SHIPMENT_TABLE
 AS
 
 /* ============================================================
-   SHP_HDR — Shipment header fields (one row per shipment)
-   Source: BRONZE_DATA.TCM_BRONZE.CP_SHPHDR_Bronze
+   ORD_HDR — Order header fields (one row per order)
+   Source: BRONZE_DATA.TCM_BRONZE.CP_ORDHDR_Bronze
    ============================================================ */
-WITH SHP_HDR AS (
+WITH ORD_HDR AS (
     SELECT
         h.ID_ORD,
-        h.ID_SHIP,
 
         -- Customer
         h.ID_CUST_SOLDTO,
@@ -35,10 +34,12 @@ WITH SHP_HDR AS (
         h.PCT_SPLIT_COMMSN_3,
         h.PCT_COMMSN,
 
-        -- Ship Date
-        h.DATE_SHIP,
+        -- Dates
         h.DATE_ORD,
-        h.DATE_ADD                  AS SHP_DATE_CREATED,
+        h.DATE_ADD                  AS ORD_DATE_CREATED,
+        h.DATE_BOOK_LAST,
+        h.DATE_SHIP_LAST            AS HDR_DATE_SHIP_LAST,
+        h.DATE_INVC_LAST            AS HDR_DATE_INVC_LAST,
 
         -- Ship-from / Shipping
         h.ID_LOC_SHIPFM,
@@ -61,46 +62,29 @@ WITH SHP_HDR AS (
         h.PCT_DISC_ORD_2,
         h.PCT_DISC_ORD_3,
 
-        -- Financials (header-level)
+        -- Financials (header-level totals)
         h.AMT_ORD_TOTAL,
         h.COST_TOTAL,
         h.AMT_FRT,
         h.TAX_SLS,
-        h.AMT_CHRG_MISC,
-        h.AMT_FEE_RESTOCK,
 
-        -- Invoice
-        h.ID_INVC,
-        h.FLAG_INVC,
-
-        -- Weight / Carton
-        h.WGT_TOTAL,
-        h.QTY_CARTON_TOTAL,
-
-        -- BOL
-        h.ID_SHIP_BOL,
-        h.FLAG_BOL,
-        h.DATE_BOL_LAST,
-
-        -- Confirmation
-        h.CODE_STAT_CONFIRM,
-
-        -- Territory / Reference
+        -- Territory
         h.ID_TERR,
+
+        -- Reference
         h.ID_QUOTE,
         h.ID_JOB
 
-    FROM BRONZE_DATA.TCM_BRONZE."CP_SHPHDR_Bronze" h
+    FROM BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_Bronze" h
 ),
 
 /* ============================================================
-   SHP_LIN — Shipment line detail (one row per shipment line)
-   Source: BRONZE_DATA.TCM_BRONZE.CP_SHPLIN_Bronze
+   ORD_LIN — Order line detail (one row per order + line)
+   Source: BRONZE_DATA.TCM_BRONZE.CP_ORDLIN_Bronze
    ============================================================ */
-SHP_LIN AS (
+ORD_LIN AS (
     SELECT
         l.ID_ORD,
-        l.ID_SHIP,
         l.SEQ_LINE_ORD,
 
         -- Item
@@ -113,14 +97,16 @@ SHP_LIN AS (
         l.CODE_CAT_COST,
 
         -- Quantities
-        l.QTY_SHIP,
+        l.QTY_ORG,
         l.QTY_OPEN,
         l.QTY_BO,
+        l.QTY_BOOK,
+        l.QTY_REL,
         l.QTY_ALLOC,
-        l.QTY_CARTON,
-        l.QTY_CARTON_PER,
+        l.QTY_SHIP_TOTAL,
+        l.QTY_SHIP_LAST,
 
-        -- Pricing
+        -- Pricing (stored as varchar in source — kept as-is for now)
         l.PRICE_LIST_VP,
         l.PRICE_SELL_VP,
         l.PRICE_SELL_NET_VP,
@@ -131,29 +117,21 @@ SHP_LIN AS (
         l.DATE_RQST,
         l.DATE_PROM,
         l.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
-        l.DATE_PICK_LAST            AS LINE_DATE_PICK_LAST,
-        l.DATE_BOL_LAST             AS LINE_DATE_BOL_LAST,
-        l.DATE_CHG_LAST             AS LINE_DATE_CHG_LAST,
+        l.DATE_SHIP_LAST            AS LINE_DATE_SHIP_LAST,
+        l.DATE_INVC_LAST            AS LINE_DATE_INVC_LAST,
+        l.DATE_REL,
 
         -- Unit of Measure
         l.CODE_UM_ORD,
         l.CODE_UM_PRICE,
         l.RATIO_STK_PRICE,
 
-        -- Weight
-        l.WGT_ITEM,
-        l.WGT_SHIP_TOTAL,
-
         -- Flags
         l.FLAG_STK,
         l.FLAG_BO,
-        l.FLAG_CONFIRM_SHIP,
-        l.FLAG_INVC                 AS LINE_FLAG_INVC,
-        l.FLAG_BOL                  AS LINE_FLAG_BOL,
-        l.FLAG_PICK                 AS LINE_FLAG_PICK,
-        l.FLAG_POST,
+        l.FLAG_PRIOR_LINE_ORD,
 
-        -- Shop Order Linkage (FK → MASTER_SHOPORDER_TABLE)
+        -- Shop Order Linkage (FK to MASTER_SHOPORDER_TABLE)
         l.ID_LOC_SO,
         l.ID_SO,
         l.SUFX_SO,
@@ -162,20 +140,19 @@ SHP_LIN AS (
         l.ID_EST,
         l.ID_QUOTE                  AS LINE_ID_QUOTE,
 
-        -- Freight
-        l.CODE_FRT
+        -- Weight
+        l.WGT_ITEM
 
-    FROM BRONZE_DATA.TCM_BRONZE."CP_SHPLIN_Bronze" l
+    FROM BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_Bronze" l
 )
 
 /* ============================================================
-   FINAL SELECT — Shipment-line grain master table
+   FINAL SELECT — Order-line grain master table
    Header fields denormalized onto every line
    ============================================================ */
 SELECT
-    -- ── Shipment Key ──────────────────────────────────────
+    -- ── Order Key ─────────────────────────────────────────
     l.ID_ORD,
-    l.ID_SHIP,
     l.SEQ_LINE_ORD,
 
     -- ── Customer ──────────────────────────────────────────
@@ -207,12 +184,15 @@ SELECT
     l.CODE_CAT_COST,
 
     -- ── Quantities ────────────────────────────────────────
-    l.QTY_SHIP,
+    l.QTY_ORG,
     l.QTY_OPEN,
     l.QTY_BO,
+    l.QTY_BOOK,
+    l.QTY_REL,
     l.QTY_ALLOC,
-    l.QTY_CARTON,
-    l.QTY_CARTON_PER,
+    l.QTY_SHIP_TOTAL,
+    l.QTY_SHIP_LAST,
+    l.QTY_ORG - l.QTY_SHIP_TOTAL                   AS QTY_REMAINING,
 
     -- ── Pricing ───────────────────────────────────────────
     l.PRICE_LIST_VP,
@@ -222,17 +202,17 @@ SELECT
     l.PRICE_NET,
 
     -- ── Dates (header-level) ──────────────────────────────
-    h.DATE_SHIP,
     h.DATE_ORD,
-    h.SHP_DATE_CREATED,
+    h.ORD_DATE_CREATED,
+    h.DATE_BOOK_LAST,
 
     -- ── Dates (line-level) ────────────────────────────────
     l.DATE_RQST,
     l.DATE_PROM,
     l.LINE_DATE_BOOK_LAST,
-    l.LINE_DATE_PICK_LAST,
-    l.LINE_DATE_BOL_LAST,
-    l.LINE_DATE_CHG_LAST,
+    l.LINE_DATE_SHIP_LAST,
+    l.LINE_DATE_INVC_LAST,
+    l.DATE_REL,
 
     -- ── Shipping ──────────────────────────────────────────
     h.ID_LOC_SHIPFM,
@@ -258,29 +238,6 @@ SELECT
     h.COST_TOTAL,
     h.AMT_FRT,
     h.TAX_SLS,
-    h.AMT_CHRG_MISC,
-    h.AMT_FEE_RESTOCK,
-
-    -- ── Invoice ───────────────────────────────────────────
-    h.ID_INVC,
-    h.FLAG_INVC,
-    l.LINE_FLAG_INVC,
-
-    -- ── Weight ────────────────────────────────────────────
-    h.WGT_TOTAL,
-    h.QTY_CARTON_TOTAL,
-    l.WGT_ITEM,
-    l.WGT_SHIP_TOTAL,
-
-    -- ── BOL / Confirmation ────────────────────────────────
-    h.ID_SHIP_BOL,
-    h.FLAG_BOL,
-    h.DATE_BOL_LAST,
-    h.CODE_STAT_CONFIRM,
-    l.FLAG_CONFIRM_SHIP,
-    l.LINE_FLAG_BOL,
-    l.LINE_FLAG_PICK,
-    l.FLAG_POST,
 
     -- ── Unit of Measure ───────────────────────────────────
     l.CODE_UM_ORD,
@@ -290,23 +247,21 @@ SELECT
     -- ── Flags ─────────────────────────────────────────────
     l.FLAG_STK,
     l.FLAG_BO,
+    l.FLAG_PRIOR_LINE_ORD,
 
     -- ── Shop Order Linkage (FK → MASTER_SHOPORDER_TABLE) ──
     l.ID_LOC_SO,
     l.ID_SO,
     l.SUFX_SO,
 
-    -- ── Freight ───────────────────────────────────────────
-    l.CODE_FRT,
-
     -- ── Reference ─────────────────────────────────────────
     h.ID_TERR,
     h.ID_QUOTE,
     h.ID_JOB,
     l.ID_EST,
-    l.LINE_ID_QUOTE
+    l.LINE_ID_QUOTE,
+    l.WGT_ITEM
 
-FROM SHP_LIN l
-INNER JOIN SHP_HDR h
-    ON l.ID_ORD  = h.ID_ORD
-   AND l.ID_SHIP = h.ID_SHIP;
+FROM ORD_LIN l
+INNER JOIN ORD_HDR h
+    ON l.ID_ORD = h.ID_ORD;
