@@ -1,4 +1,4 @@
-CREATE OR REPLACE DYNAMIC TABLE BRONZE_DATA.TCM_BRONZE.ALL_SALES_HIST_TEST
+CREATE OR REPLACE DYNAMIC TABLE BRONZE_DATA.TCM_BRONZE.ALL_SALES_HIST_TEST_DT
     TARGET_LAG = 'DOWNSTREAM'    -- Adjust to desired freshness (e.g., '30 minutes', 'DOWNSTREAM')
     WAREHOUSE  = ELT_DEFAULT  -- Replace with your actual warehouse name
 AS
@@ -79,6 +79,13 @@ BASE AS (
         mpt."ATTR (SKU) TARIFF_CODE",
         mpt."ATTR (SKU) UPC_CODE",
         mpt."ATTR (SKU) PFAS",
+        mpt."ATTR (SKU) CLASS",
+        mpt."ATTR (SKU) PPC",
+        mpt."ATTR (SKU) PRIOR COMMODITY",
+        mpt."ATTR (SKU) RBN_WC",
+        mpt."ATTR (SKU) REASON",
+        mpt."ATTR (SKU) REPLACEMENT",
+        mpt."ATTR (SKU) REQUESTOR",
         mpt."ATTR (PAR) BERRY",
         mpt."ATTR (PAR) CARE",
         mpt."ATTR (PAR) HEAT TRANSFER",
@@ -92,6 +99,22 @@ BASE AS (
         mpt."ATTR (PAR) Z_GENDER",
         mpt."ATTR (PAR) Z_VERTICAL",
         mpt."Advertised Flag",
+        mpt."Cost_Material_Accumulated_Current",
+        mpt."Cost_Material_Accumulated_Standard",
+        mpt."Cost_Freight_Current",
+        mpt."Cost_Freight_Standard",
+        mpt."Cost_Material_Current", 
+        mpt."Cost_Labor_Current",
+        mpt."Cost_Material_Standard",
+        mpt."Cost_Labor_Standard",
+        mpt."Cost_Outside_Service_Current",
+        mpt."Cost_User_Current",
+        mpt."Cost_Outside_Service_Standard",
+        mpt."Cost_User_Field_Standard",
+        mpt."Cost_Total_Current",
+        mpt."Cost_Total_Standard",
+        mpt."Cost_Variable_Burden_Current",
+        mpt."Cost_Variable_Burden_Standard",
         il.id_planner AS "Planned Classification",
         mpt."PROP 65",
         sls."INVOICE DATE" AS "INVOICE DATE",

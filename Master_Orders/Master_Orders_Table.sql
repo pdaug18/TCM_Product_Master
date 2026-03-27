@@ -25,6 +25,11 @@ WITH ORD_HDR AS (
         h.TYPE_ORD_CP,
         h.CODE_STAT_ORD,
 
+        -- Customer Type Codes
+        h.CODE_CUST_1,
+        h.CODE_CUST_2,
+        h.CODE_CUST_3,
+
         -- Sales
         h.ID_SLSREP_1,
         h.ID_SLSREP_2,
@@ -96,6 +101,10 @@ WITH ORD_HDR AS (
         p.TYPE_ORD_CP,
         p.CODE_STAT_ORD,
 
+        p.CODE_CUST_1,
+        p.CODE_CUST_2,
+        p.CODE_CUST_3,
+
         p.ID_SLSREP_1,
         p.ID_SLSREP_2,
         p.ID_SLSREP_3,
@@ -155,6 +164,8 @@ ORD_LIN AS (
 
         -- Item
         l.ID_ITEM,
+        l.ID_ITEM_CUST,
+        l.ID_CONFIG,
         l.ID_LOC,
         TRIM(COALESCE(l.DESCR_1, '') || ' ' || COALESCE(l.DESCR_2, ''))  AS LINE_ITEM_DESCRIPTION,
 
@@ -179,6 +190,9 @@ ORD_LIN AS (
         l.COST_UNIT_VP,
         l.PRICE_NET,
 
+        -- Commission
+        l.AMT_COMMSN,
+
         -- Dates (line-level)
         l.DATE_RQST,
         l.DATE_PROM,
@@ -202,6 +216,9 @@ ORD_LIN AS (
         l.ID_SO,
         l.SUFX_SO,
 
+        -- Backorder
+        l.VER_BO,
+
         -- Estimate / Quote
         l.ID_EST,
         l.ID_QUOTE                  AS LINE_ID_QUOTE,
@@ -222,6 +239,8 @@ ORD_LIN AS (
         'PERM'                      AS LIN_SOURCE_TABLE,
 
         p.ID_ITEM,
+        p.ID_ITEM_CUST,
+        p.ID_CONFIG,
         p.ID_LOC,
         TRIM(COALESCE(p.DESCR_1, '') || ' ' || COALESCE(p.DESCR_2, ''))  AS LINE_ITEM_DESCRIPTION,
 
@@ -243,6 +262,8 @@ ORD_LIN AS (
         p.COST_UNIT_VP,
         p.PRICE_NET,
 
+        p.AMT_COMMSN,
+
         p.DATE_RQST,
         p.DATE_PROM,
         p.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
@@ -261,6 +282,8 @@ ORD_LIN AS (
         p.ID_LOC_SO,
         p.ID_SO,
         p.SUFX_SO,
+
+        p.VER_BO,
 
         p.ID_EST,
         p.ID_QUOTE                  AS LINE_ID_QUOTE,
@@ -299,11 +322,60 @@ ORD_COMMENTS AS (
         WHERE COALESCE(FLAG_DEL, '') <> 'D'
     ) c
     WHERE c.RN = 1
+),
+
+/* ============================================================
+   SLSREP — Sales representative name lookup
+   Source: BRONZE_DATA.TCM_BRONZE.TABLES_SLSREP_Bronze
+   ============================================================ */
+SLSREP AS (
+    SELECT
+        sr.ID_SLSREP,
+        sr.NAME_SLSREP
+    FROM BRONZE_DATA.TCM_BRONZE."TABLES_SLSREP_Bronze" sr
+),
+
+/* ============================================================
+   LOC_DESC — Location description lookup
+   Source: BRONZE_DATA.TCM_BRONZE.TABLES_LOC_Bronze
+   ============================================================ */
+LOC_DESC AS (
+    SELECT
+        loc.ID_LOC,
+        loc.DESCR                   AS LOC_DESCRIPTION
+    FROM BRONZE_DATA.TCM_BRONZE."TABLES_LOC_Bronze" loc
+),
+
+/* ============================================================
+   PROD_CAT_CUST — Product category description (customer-type-specific)
+   Source: BRONZE_DATA.TCM_BRONZE.TABLES_CODE_CAT_PRDT_Bronze
+   ============================================================ */
+PROD_CAT_CUST AS (
+    SELECT
+        pc.CODE_CAT_PRDT,
+        pc.CODE_TYPE_CUST,
+        pc.DESCR                    AS PROD_CAT_DESCR
+    FROM BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc
+    WHERE pc.CODE_TYPE_CUST <> ' '
+),
+
+/* ============================================================
+   PROD_CAT_DFLT — Product category description (default / generic)
+   Source: BRONZE_DATA.TCM_BRONZE.TABLES_CODE_CAT_PRDT_Bronze
+   ============================================================ */
+PROD_CAT_DFLT AS (
+    SELECT
+        pd.CODE_CAT_PRDT,
+        pd.DESCR                    AS PROD_CAT_DESCR
+    FROM BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pd
+    WHERE pd.CODE_TYPE_CUST = ' '
 )
 
 /* ============================================================
    FINAL SELECT — Order-line grain master table
    Header fields denormalized onto every line
+   Reference lookups: sales rep name, location, product category
+   VP pricing decoded to numeric + open-value calculations
    ============================================================ */
 SELECT
     -- ── Order Key ─────────────────────────────────────────
@@ -326,8 +398,14 @@ SELECT
     h.TYPE_ORD_CP,
     h.CODE_STAT_ORD,
 
+    -- ── Customer Type Codes ───────────────────────────────
+    h.CODE_CUST_1,
+    h.CODE_CUST_2,
+    h.CODE_CUST_3,
+
     -- ── Sales Rep ─────────────────────────────────────────
     h.ID_SLSREP_1,
+    sr.NAME_SLSREP                                  AS SLSREP_1_NAME,
     h.ID_SLSREP_2,
     h.ID_SLSREP_3,
     h.PCT_SPLIT_COMMSN_1,
@@ -337,10 +415,16 @@ SELECT
 
     -- ── Item (line-level) ─────────────────────────────────
     l.ID_ITEM,
+    l.ID_ITEM_CUST,
+    l.ID_CONFIG,
     l.ID_LOC,
+    ld.LOC_DESCRIPTION,
     l.LINE_ITEM_DESCRIPTION,
     l.CODE_CAT_PRDT,
     l.CODE_CAT_COST,
+    COALESCE(pcc.PROD_CAT_DESCR, pcd.PROD_CAT_DESCR)
+                                                    AS PROD_CAT_DESCR,
+    l.CODE_CAT_PRDT || h.CODE_CUST_1               AS CONCAT_PROD_CAT,
 
     -- ── Quantities ────────────────────────────────────────
     l.QTY_ORG,
@@ -353,12 +437,30 @@ SELECT
     l.QTY_SHIP_LAST,
     l.QTY_ORG - l.QTY_SHIP_TOTAL                   AS QTY_REMAINING,
 
-    -- ── Pricing ───────────────────────────────────────────
+    -- ── Pricing (raw VP varchar — retained for audit) ─────
     l.PRICE_LIST_VP,
     l.PRICE_SELL_VP,
     l.PRICE_SELL_NET_VP,
     l.COST_UNIT_VP,
     l.PRICE_NET,
+
+    -- ── Pricing (decoded numeric) ─────────────────────────
+    --   VP format: RIGHT(field, 10) gives mantissa; /10000 scales
+    --   TRY_CAST handles non-numeric VP values gracefully (→ NULL)
+    TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))       / 10000   AS COST_UNIT,
+    TRY_CAST(RIGHT(l.PRICE_LIST_VP, 10) AS DECIMAL(18,6))      / 10000   AS PRICE_LIST,
+    TRY_CAST(RIGHT(l.PRICE_SELL_VP, 10) AS DECIMAL(18,6))      / 10000   AS PRICE_SELL,
+    TRY_CAST(RIGHT(l.PRICE_SELL_NET_VP, 10) AS DECIMAL(18,6))  / 10000   AS PRICE_SELL_NET,
+
+    -- ── Open-Value Calculations ───────────────────────────
+    l.QTY_OPEN * (TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))      / 10000)   AS OPEN_COST,
+    l.QTY_OPEN * (TRY_CAST(RIGHT(l.PRICE_SELL_NET_VP, 10) AS DECIMAL(18,6)) / 10000)   AS OPEN_NET_AMT,
+    l.QTY_OPEN * (TRY_CAST(RIGHT(l.PRICE_LIST_VP, 10) AS DECIMAL(18,6))     / 10000)   AS OPEN_LIST_AMT,
+    l.QTY_OPEN * (TRY_CAST(RIGHT(l.PRICE_SELL_NET_VP, 10) AS DECIMAL(18,6)) / 10000)   AS OPEN_SELL_AMT, 
+    l.QTY_OPEN * (TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))      / 10000)   AS OPEN_MARGIN,
+
+    -- ── Commission ────────────────────────────────────────
+    l.AMT_COMMSN,
 
     -- ── Dates (header-level) ──────────────────────────────
     h.DATE_ORD,
@@ -372,6 +474,12 @@ SELECT
     l.LINE_DATE_SHIP_LAST,
     l.LINE_DATE_INVC_LAST,
     l.DATE_REL,
+
+    -- ── Promise Date Dimensions ───────────────────────────
+    YEAR(l.DATE_PROM)                               AS DATE_PROM_YEAR,
+    QUARTER(l.DATE_PROM)                            AS DATE_PROM_QUARTER,
+    MONTH(l.DATE_PROM)                              AS DATE_PROM_MONTH,
+    YEAR(l.DATE_PROM) * 100 + MONTH(l.DATE_PROM)   AS DATE_PROM_YEARMONTH,
 
     -- ── Shipping ──────────────────────────────────────────
     h.ID_LOC_SHIPFM,
@@ -413,6 +521,9 @@ SELECT
     l.ID_SO,
     l.SUFX_SO,
 
+    -- ── Backorder ─────────────────────────────────────────
+    l.VER_BO,
+
     -- ── Reference ─────────────────────────────────────────
     h.ID_TERR,
     h.ID_QUOTE,
@@ -434,4 +545,13 @@ FROM ORD_LIN l
 INNER JOIN ORD_HDR h
     ON l.ID_ORD = h.ID_ORD
 LEFT JOIN ORD_COMMENTS c
-    ON l.ID_ORD = c.ID_ORD;
+    ON l.ID_ORD = c.ID_ORD
+LEFT JOIN SLSREP sr
+    ON h.ID_SLSREP_1 = sr.ID_SLSREP
+LEFT JOIN LOC_DESC ld
+    ON l.ID_LOC = ld.ID_LOC
+LEFT JOIN PROD_CAT_CUST pcc
+    ON l.CODE_CAT_PRDT = pcc.CODE_CAT_PRDT
+   AND h.CODE_CUST_1   = pcc.CODE_TYPE_CUST
+LEFT JOIN PROD_CAT_DFLT pcd
+    ON l.CODE_CAT_PRDT = pcd.CODE_CAT_PRDT;
