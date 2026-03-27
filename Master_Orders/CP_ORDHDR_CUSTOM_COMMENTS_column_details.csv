@@ -1,0 +1,13 @@
+column_name,data_type,character_maximum_length
+ID_ORD,numeric,NULL
+DATE_EST_SHIP,datetime,NULL
+DATE_OLD_SHIP,datetime,NULL
+COMMENT,varchar,500
+DATE_ADD,datetime,NULL
+ID_USER_ADD,char,3
+DATE_CHG,datetime,NULL
+ID_USER_CHG,char,3
+rowid,int,NULL
+FLAG_DEL,char,1
+LATE_CODE,varchar,4
+rowversion,timestamp,NULL

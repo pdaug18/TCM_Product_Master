@@ -4,14 +4,14 @@ CREATE OR REPLACE DYNAMIC TABLE SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE
     INITIALIZE   = ON_CREATE
     WAREHOUSE    = ELT_DEFAULT
 AS
-
 /* ============================================================
    ORD_HDR — Order header fields (one row per order)
-   Source: BRONZE_DATA.TCM_BRONZE.CP_ORDHDR_Bronze
+   Sources: CP_ORDHDR_Bronze (active) ∪ CP_ORDHDR_PERM_Bronze (closed)
    ============================================================ */
 WITH ORD_HDR AS (
     SELECT
         h.ID_ORD,
+        'ACTIVE'                    AS HDR_SOURCE_TABLE,
 
         -- Customer
         h.ID_CUST_SOLDTO,
@@ -73,19 +73,85 @@ WITH ORD_HDR AS (
 
         -- Reference
         h.ID_QUOTE,
-        h.ID_JOB
+        h.ID_JOB,
+
+        -- User
+        h.ID_USER_ADD
 
     FROM BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_Bronze" h
+
+    UNION ALL
+
+    SELECT
+        p.ID_ORD,
+        'PERM'                      AS HDR_SOURCE_TABLE,
+
+        p.ID_CUST_SOLDTO,
+        p.SEQ_SHIPTO,
+        p.ID_CUST_BILLTO,
+        p.NAME_CUST,
+        p.NAME_CUST_SHIPTO,
+        p.ID_PO_CUST,
+
+        p.TYPE_ORD_CP,
+        p.CODE_STAT_ORD,
+
+        p.ID_SLSREP_1,
+        p.ID_SLSREP_2,
+        p.ID_SLSREP_3,
+        p.PCT_SPLIT_COMMSN_1,
+        p.PCT_SPLIT_COMMSN_2,
+        p.PCT_SPLIT_COMMSN_3,
+        p.PCT_COMMSN,
+
+        p.DATE_ORD,
+        p.DATE_ADD                  AS ORD_DATE_CREATED,
+        p.DATE_BOOK_LAST,
+        p.DATE_SHIP_LAST            AS HDR_DATE_SHIP_LAST,
+        p.DATE_INVC_LAST            AS HDR_DATE_INVC_LAST,
+
+        p.ID_LOC_SHIPFM,
+        p.CODE_SHIP_VIA_CP,
+        p.DESCR_SHIP_VIA,
+
+        p.ADDR_1,
+        p.ADDR_2,
+        p.CITY,
+        p.ID_ST,
+        p.ZIP,
+        p.COUNTRY,
+
+        p.CODE_TRMS_CP,
+        p.DESCR_TRMS,
+        p.PCT_DISC_TRMS,
+        p.PCT_DISC_ORD_1,
+        p.PCT_DISC_ORD_2,
+        p.PCT_DISC_ORD_3,
+
+        p.AMT_ORD_TOTAL,
+        p.COST_TOTAL,
+        p.AMT_FRT,
+        p.TAX_SLS,
+
+        p.ID_TERR,
+
+        p.ID_QUOTE,
+        p.ID_JOB,
+
+        p.ID_USER_ADD
+
+    FROM BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_PERM_Bronze" p
 ),
 
 /* ============================================================
    ORD_LIN — Order line detail (one row per order + line)
-   Source: BRONZE_DATA.TCM_BRONZE.CP_ORDLIN_Bronze
+   Sources: CP_ORDLIN_Bronze (active) ∪ CP_ORDLIN_PERM_Bronze (closed)
    ============================================================ */
 ORD_LIN AS (
     SELECT
         l.ID_ORD,
         l.SEQ_LINE_ORD,
+        'ACTIVE'                    AS LIN_SOURCE_TABLE,
 
         -- Item
         l.ID_ITEM,
@@ -141,9 +207,98 @@ ORD_LIN AS (
         l.ID_QUOTE                  AS LINE_ID_QUOTE,
 
         -- Weight
-        l.WGT_ITEM
+        l.WGT_ITEM,
+
+        -- User
+        l.ID_USER_ADD
 
     FROM BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_Bronze" l
+
+    UNION ALL
+
+    SELECT
+        p.ID_ORD,
+        p.SEQ_LINE_ORD,
+        'PERM'                      AS LIN_SOURCE_TABLE,
+
+        p.ID_ITEM,
+        p.ID_LOC,
+        TRIM(COALESCE(p.DESCR_1, '') || ' ' || COALESCE(p.DESCR_2, ''))  AS LINE_ITEM_DESCRIPTION,
+
+        p.CODE_CAT_PRDT,
+        p.CODE_CAT_COST,
+
+        p.QTY_ORG,
+        p.QTY_OPEN,
+        p.QTY_BO,
+        p.QTY_BOOK,
+        p.QTY_REL,
+        p.QTY_ALLOC,
+        p.QTY_SHIP_TOTAL,
+        p.QTY_SHIP_LAST,
+
+        p.PRICE_LIST_VP,
+        p.PRICE_SELL_VP,
+        p.PRICE_SELL_NET_VP,
+        p.COST_UNIT_VP,
+        p.PRICE_NET,
+
+        p.DATE_RQST,
+        p.DATE_PROM,
+        p.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
+        p.DATE_SHIP_LAST            AS LINE_DATE_SHIP_LAST,
+        p.DATE_INVC_LAST            AS LINE_DATE_INVC_LAST,
+        p.DATE_REL,
+
+        p.CODE_UM_ORD,
+        p.CODE_UM_PRICE,
+        p.RATIO_STK_PRICE,
+
+        p.FLAG_STK,
+        p.FLAG_BO,
+        p.FLAG_PRIOR_LINE_ORD,
+
+        p.ID_LOC_SO,
+        p.ID_SO,
+        p.SUFX_SO,
+
+        p.ID_EST,
+        p.ID_QUOTE                  AS LINE_ID_QUOTE,
+
+        p.WGT_ITEM,
+
+        p.ID_USER_ADD
+
+    FROM BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_PERM_Bronze" p
+),
+
+/* ============================================================
+   ORD_COMMENTS — Custom comments / ship-date overrides
+   Deduped to latest per ID_ORD; soft-deletes excluded
+   Source: BRONZE_DATA.TCM_BRONZE.CP_ORDHDR_CUSTOM_COMMENTS_Bronze
+   ============================================================ */
+ORD_COMMENTS AS (
+    SELECT
+        c.ID_ORD,
+        c.DATE_EST_SHIP,
+        c.DATE_OLD_SHIP,
+        c.COMMENT                   AS ORD_COMMENT,
+        c.LATE_CODE
+    FROM (
+        SELECT
+            ID_ORD,
+            DATE_EST_SHIP,
+            DATE_OLD_SHIP,
+            COMMENT,
+            LATE_CODE,
+            ROW_NUMBER() OVER (
+                PARTITION BY ID_ORD
+                ORDER BY DATE_CHG DESC NULLS LAST
+            ) AS RN
+        FROM BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_CUSTOM_COMMENTS_Bronze"
+        WHERE COALESCE(FLAG_DEL, '') <> 'D'
+    ) c
+    WHERE c.RN = 1
 )
 
 /* ============================================================
@@ -154,6 +309,10 @@ SELECT
     -- ── Order Key ─────────────────────────────────────────
     l.ID_ORD,
     l.SEQ_LINE_ORD,
+
+    -- ── Source Tables ─────────────────────────────────────
+    h.HDR_SOURCE_TABLE,
+    l.LIN_SOURCE_TABLE,
 
     -- ── Customer ──────────────────────────────────────────
     h.ID_CUST_SOLDTO,
@@ -260,8 +419,19 @@ SELECT
     h.ID_JOB,
     l.ID_EST,
     l.LINE_ID_QUOTE,
-    l.WGT_ITEM
+    l.WGT_ITEM,
+
+    -- ── Comments / Ship Dates ─────────────────────────────
+    c.DATE_EST_SHIP,
+    c.DATE_OLD_SHIP,
+    c.ORD_COMMENT,
+    c.LATE_CODE,
+
+    -- ── User ──────────────────────────────────────────────
+    h.ID_USER_ADD
 
 FROM ORD_LIN l
 INNER JOIN ORD_HDR h
-    ON l.ID_ORD = h.ID_ORD;
+    ON l.ID_ORD = h.ID_ORD
+LEFT JOIN ORD_COMMENTS c
+    ON l.ID_ORD = c.ID_ORD;
