@@ -1,0 +1,98 @@
+﻿Field,Friendly Name
+id_loc_src_cost_std,Cost Location_Standard Cost Source Location
+type_cost,Cost_Cost Type
+cost_labor_va_crnt,Cost_Labor_Current
+cost_labor_va_std,Cost_Labor_Standard
+cost_matl_accum_crnt,Cost_Material_Accumulated_Current
+cost_matl_accum_std,Cost_Material_Accumulated_Standard
+cost_matl_va_crnt,Cost_Material_Current
+cost_matl_va_std,Cost_Material_Standard
+cost_outp_va_crnt,Cost_Outside Service_Current
+cost_outp_va_std,Cost_Outside Service_Standard
+cost_total_accum_crnt,Cost_Total_Current
+cost_total_accum_std,Cost_Total_Standard
+cost_user_va_crnt,Cost_User Field_Current
+cost_user_va_std,Cost_User Field_Standard
+cost_vb_va_crnt,Cost_Variable Burden_Current
+cost_vb_va_std,Cost_Variable Burden_Standard
+cost_fb_va_crnt,Cost_Freight_Current
+cost_fb_va_std,Cost_Freight_Standard
+date_accum_cost,Date_Cost_Accumulated
+date_chg_cost_va,Date_Cost_Changed
+date_std_cost,Date_Cost_Standard
+date_quote,Date_Last Vendor Quote
+,Item Delivery_Delivery Group
+,Item Delivery_Optimal Lead Time
+,Item Description_Child SKU
+descr_addl,Item Description_Parent SKU
+id_item,Item ID_Child SKU
+val_string_attr,Item ID_Parent SKU
+,Item Inventory_Optimal Inventory Level
+level_rop,Item Inventory_Reorder Point
+qty_min_rop,Item Inventory_Reorder Point_Minimum
+qty_mult_ord_rop,Item Inventory_Reorder Point_Mult
+id_vnd_ordfm,Item Primary Vendor_Primary Order From ID
+id_vnd_payto,Item Primary Vendor_Primary Pay To ID
+id_item_vnd,Item Primary Vendor_Vendor Item ID
+flag_stat_item,Item Status_Child Active Status
+val_string_attr,Item Status_Obsolete Reason
+val_string_attr,Item Status_Obsolete Requestor
+flag_stat_item,Item Status_Parent Active Status
+,Item Status_Parent Active Status_Adjusted --- do we need both Jammi?
+adv,Item_Advertised Flag
+key_alt,Item_ALT Key
+val_string_attr,Item_Berry
+flag_track_bin,Item_Bin Tracking
+val_string_attr,Item_Brand
+val_string_attr,Item_Care
+val_string_attr,Item_Certificate Number
+val_string_attr,Item_Class
+val_string_attr,Item_Color
+code_comm,Item_Commodity Code
+val_string_attr,Item_Commodity Code Prior
+flag_cntrl,Item_Controlled/Noncontrolled Flag
+descr,Item_Cost Category
+code_cat_cost,Item_Cost Category ID
+flag_fulfill_type,Item_Fulfillment Type
+val_string_attr,Item_Gender
+val_string_attr,Item_Heat Transfer
+id_loc_home,Item_Home Location Code ***again check location overlap - should only have a primary location
+val_string_attr,Item_Length
+id_loc,"Item_Location ID    ****see Location Type note - should this be primary location only! And become ""Item_Primary Location ID"""
+flag_plcy_ord,Item_Order Policy Flag
+qty_ord_econ,Item_Order Quantity_Econ  -- what is this?
+val_string_attr,Item_Other
+val_string_attr,Item_Pad Print
+val_string_attr,Item_PFAS
+id_planner,Item_Planned Classification
+val_string_attr,Item_PPC
+type_loc,Item_Primary Location Type
+val_string_attr,Item_Product Category
+descr,Item_Product Category - again need clarification
+,Item_Product Category ----- PROBABLY OBSOLETE / REDUNDANT = NEED CLARIFICATION
+val_string_attr,Item_Product Category Code
+val_string_attr,Item_Product Type
+descr_addl,Item_Prop 65
+lt_rop,Item_Reorder Point_Lead Time  ???? Is LT Lead Time - what is this?
+val_string_attr,Item_Replaced By
+id_rte,Item_Routing Number
+flag_iss_auto_sf,Item_Shop Floor Auto Issue Flag   ***WHAT?
+val_string_attr,Item_Size
+flag_source,Item_Source Flag
+flag_stk,Item_Stock Flag
+val_string_attr,Item_Tariff Code
+val_string_attr,Item_UPC Code
+val_string_attr,Item_Vertical
+,"Item_Vertical - duplicative, needs clarification"
+code_cat_prdt,Item_Vertical Code
+wgt_item,Item_Weight
+val_string_attr,Item_Work Center_Rubin
+ratio_stk_price,Ratio_Price to Stock
+ratio_stk_pur,Ratio_Purchase to Stock
+code_um_price,Unit of Measure_Price
+code_um_pur,Unit of Measure_Purchase
+code_um_stk,Unit of Measure_Stock
+code_um_vnd,Unit of Measure_Vendor Code
+code_user_1_im,User Code_User 1
+code_user_2_im,User Code_User 2
+code_user_3_im,User Code_User 3
