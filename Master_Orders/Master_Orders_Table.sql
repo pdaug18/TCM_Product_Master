@@ -306,7 +306,7 @@ ORD_COMMENTS AS (
         c.DATE_EST_SHIP,
         c.DATE_OLD_SHIP,
         c.COMMENT                   AS ORD_COMMENT,
-        c.LATE_CODE
+        c.LATE_CODE                 --! LATE_CODE values are defined as follows (per business)? [ NULL->79587,  1->307, 2->272, 9->48, 6->43, 3->10, 4->6, 5->4 ]
     FROM (
         SELECT
             ID_ORD,
@@ -316,7 +316,7 @@ ORD_COMMENTS AS (
             LATE_CODE,
             ROW_NUMBER() OVER (
                 PARTITION BY ID_ORD
-                ORDER BY DATE_CHG DESC NULLS LAST
+                ORDER BY "rowid" DESC NULLS LAST, "rowversion" DESC NULLS LAST
             ) AS RN
         FROM BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_CUSTOM_COMMENTS_Bronze"
         WHERE COALESCE(FLAG_DEL, '') <> 'D'
@@ -349,6 +349,10 @@ LOC_DESC AS (
 /* ============================================================
    PROD_CAT_CUST — Product category description (customer-type-specific)
    Source: BRONZE_DATA.TCM_BRONZE.TABLES_CODE_CAT_PRDT_Bronze
+   This table contains product category descriptions specific to each customer type (CODE_TYPE_CUST). 
+   Joining on both CODE_CAT_PRDT and CODE_TYPE_CUST allows us to retrieve the most relevant 
+   product category description for each order line, 
+   based on the customer type associated with the order.
    ============================================================ */
 PROD_CAT_CUST AS (
     SELECT
@@ -362,6 +366,7 @@ PROD_CAT_CUST AS (
 /* ============================================================
    PROD_CAT_DFLT — Product category description (default / generic)
    Source: BRONZE_DATA.TCM_BRONZE.TABLES_CODE_CAT_PRDT_Bronze
+    This table contains default product category descriptions that are not specific to any customer type (CODE_TYPE_CUST = ' ').
    ============================================================ */
 PROD_CAT_DFLT AS (
     SELECT
