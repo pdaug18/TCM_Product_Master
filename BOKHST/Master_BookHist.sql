@@ -83,7 +83,7 @@ BK_LINE AS (
     FROM BRONZE_DATA.TCM_BRONZE."BOKHST_LINE_Bronze" l
     INNER JOIN VALID_ORDERS vo
         ON l.ID_ORD = vo.ID_ORD
-)select * from BK_LINE limit 100;
+)
 ,
 
 /* ============================================================
