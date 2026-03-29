@@ -1,5 +1,6 @@
-create or replace dynamic table SILVER_DATA.TCM_SILVER.ITEM_VENDOR_MASTER_DT
-TARGET_LAG = '1 day'
+create or replace dynamic table SILVER_DATA.TCM_SILVER.MASTER_ITEM_VENDOR
+TARGET_LAG = 'DOWNSTREAM'
+REFRESH_MODE = AUTO
 WAREHOUSE = ELT_TCM_TRANSFORM
 as
 
@@ -18,7 +19,7 @@ WITH base AS (
     WHERE ib.FLAG_STAT_ITEM = 'A'
       AND ib.CODE_CAT_COST = '05'
 ),
-rollup AS (
+roll_up AS (
     SELECT
         id_item,
 
@@ -93,4 +94,4 @@ SELECT
         ELSE secondary_vendor_names_raw
     END AS secondary_vendor_names
 
-FROM rollup;
+FROM roll_up;
