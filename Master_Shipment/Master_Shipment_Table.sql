@@ -106,31 +106,31 @@ SHP_LIN AS (
         -- Item
         l.ID_ITEM,
         l.ID_LOC,
-        TRIM(COALESCE(l.DESCR_1, '') || ' ' || COALESCE(l.DESCR_2, ''))  AS LINE_ITEM_DESCRIPTION,
+        -- TRIM(COALESCE(l.DESCR_1, '') || ' ' || COALESCE(l.DESCR_2, ''))  AS LINE_ITEM_DESCRIPTION,
 
         -- Category
-        l.CODE_CAT_PRDT,
-        l.CODE_CAT_COST,
+        -- l.CODE_CAT_PRDT,
+        -- l.CODE_CAT_COST,
 
         -- Quantities
-        l.QTY_SHIP,
-        l.QTY_OPEN,
-        l.QTY_BO,
-        l.QTY_ALLOC,
-        l.QTY_CARTON,
-        l.QTY_CARTON_PER,
+        -- l.QTY_SHIP,
+        -- l.QTY_OPEN,
+        -- l.QTY_BO,
+        -- l.QTY_ALLOC,
+        -- l.QTY_CARTON,
+        -- l.QTY_CARTON_PER,
 
-        -- Pricing
-        l.PRICE_LIST_VP,
-        l.PRICE_SELL_VP,
-        l.PRICE_SELL_NET_VP,
-        l.COST_UNIT_VP,
-        l.PRICE_NET,
+        -- -- Pricing
+        -- l.PRICE_LIST_VP,
+        -- l.PRICE_SELL_VP,
+        -- l.PRICE_SELL_NET_VP,
+        -- l.COST_UNIT_VP,
+        -- l.PRICE_NET,
 
         -- Dates (line-level)
-        l.DATE_RQST,
-        l.DATE_PROM,
-        l.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
+        -- l.DATE_RQST,
+        -- l.DATE_PROM,
+        -- l.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
         l.DATE_PICK_LAST            AS LINE_DATE_PICK_LAST,
         l.DATE_BOL_LAST             AS LINE_DATE_BOL_LAST,
         l.DATE_CHG_LAST             AS LINE_DATE_CHG_LAST,
@@ -202,24 +202,24 @@ SELECT
     -- ── Item (line-level) ─────────────────────────────────
     l.ID_ITEM,
     l.ID_LOC,
-    l.LINE_ITEM_DESCRIPTION,
-    l.CODE_CAT_PRDT,
-    l.CODE_CAT_COST,
+    -- l.LINE_ITEM_DESCRIPTION,
+    -- l.CODE_CAT_PRDT,
+    -- l.CODE_CAT_COST,
 
     -- ── Quantities ────────────────────────────────────────
-    l.QTY_SHIP,
-    l.QTY_OPEN,
-    l.QTY_BO,
-    l.QTY_ALLOC,
-    l.QTY_CARTON,
-    l.QTY_CARTON_PER,
+    -- l.QTY_SHIP,
+    -- l.QTY_OPEN,
+    -- l.QTY_BO,
+    -- l.QTY_ALLOC,
+    -- l.QTY_CARTON,
+    -- l.QTY_CARTON_PER,
 
-    -- ── Pricing ───────────────────────────────────────────
-    l.PRICE_LIST_VP,
-    l.PRICE_SELL_VP,
-    l.PRICE_SELL_NET_VP,
-    l.COST_UNIT_VP,
-    l.PRICE_NET,
+    -- -- ── Pricing ───────────────────────────────────────────
+    -- l.PRICE_LIST_VP,
+    -- l.PRICE_SELL_VP,
+    -- l.PRICE_SELL_NET_VP,
+    -- l.COST_UNIT_VP,
+    -- l.PRICE_NET,
 
     -- ── Dates (header-level) ──────────────────────────────
     h.DATE_SHIP,
@@ -227,9 +227,9 @@ SELECT
     h.SHP_DATE_CREATED,
 
     -- ── Dates (line-level) ────────────────────────────────
-    l.DATE_RQST,
-    l.DATE_PROM,
-    l.LINE_DATE_BOOK_LAST,
+    -- l.DATE_RQST,
+    -- l.DATE_PROM,
+    -- l.LINE_DATE_BOOK_LAST,
     l.LINE_DATE_PICK_LAST,
     l.LINE_DATE_BOL_LAST,
     l.LINE_DATE_CHG_LAST,
