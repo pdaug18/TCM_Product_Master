@@ -166,6 +166,97 @@ SHP_LIN AS (
         l.CODE_FRT
 
     FROM BRONZE_DATA.TCM_BRONZE."CP_SHPLIN_Bronze" l
+),
+
+/* ============================================================
+   BOL_HIST — Bill of Lading history (one row per shipment)
+   Deduped to latest per (ID_ORD, ID_SHIP); metadata columns excluded
+   Source: BRONZE_DATA.TCM_BRONZE.CP_BILL_LADING_HIST_bronze
+   ============================================================ */
+BOL_HIST AS (
+    SELECT
+        b.ID_ORD,
+        b.ID_SHIP,
+
+        -- Vehicle / Carrier
+        b.ID_VHCL,
+        b.ID_CARRIER,
+        b.NAME_CARRIER,
+        b.ACCT_SHIP_VIA,
+        b.CODE_SHIP_VIA_CP          AS BOL_CODE_SHIP_VIA_CP,
+
+        -- BOL Identifiers
+        b.ID_PRO_BOL,
+        b.SEQ_STOP_BOL,
+        b.PNT_ORG,
+
+        -- Location / Invoice
+        b.ID_LOC                    AS BOL_ID_LOC,
+        b.ID_BATCH_INVC,
+        b.ID_INVC                   AS BOL_ID_INVC,
+
+        -- Weight / Volume / Quantities
+        b.WGT_SHIP_TOTAL            AS BOL_WGT_SHIP_TOTAL,
+        b.WGT_CONTENT,
+        b.QTY_CUBES,
+        b.QTY_CARTON                AS BOL_QTY_CARTON,
+        b.QTY_PALLETS,
+        b.VOL_CONT,
+        b.QTY_CONT_1,
+        b.VOL_SHIP_NET,
+
+        -- Freight / COD
+        b.FLAG_COL_PPD_FRT,
+        b.CODE_COL_PPD,
+        b.DESCR_COL_PPD,
+        b.AMT_COD,
+        b.AMT_COD_FC,
+        b.AMT_COD_FEE,
+        b.AMT_COD_FEE_FC,
+
+        -- Ship-to Address (BOL-level)
+        b.ADDR_1                    AS BOL_ADDR_1,
+        b.ADDR_2                    AS BOL_ADDR_2,
+        b.ADDR_3                    AS BOL_ADDR_3,
+        b.ADDR_4                    AS BOL_ADDR_4,
+
+        -- Third-Party Address
+        b.ADDR_1_THIRD,
+        b.ADDR_2_THIRD,
+        b.CITY_THIRD,
+        b.ID_ST_THIRD,
+        b.COUNTRY_THIRD,
+        b.PROV_THIRD,
+        b.ZIP_THIRD,
+
+        -- Delivery Dates
+        b.DATE_DELIV_EARLIEST,
+        b.DATE_DELIV_LATEST,
+
+        -- Customer Reference
+        b.REF_CUST,
+
+        -- Flags
+        b.FLAG_SHIP_COMP,
+
+        -- Audit
+        b.DATE_ADD                  AS BOL_DATE_CREATED,
+        b.TIME_ADD                  AS BOL_TIME_ADD,
+        b.ID_USER_ADD               AS BOL_ID_USER_ADD,
+        b.DATE_CHG                  AS BOL_DATE_CHANGED,
+        b.TIME_CHG                  AS BOL_TIME_CHG,
+        b.ID_USER_CHG               AS BOL_ID_USER_CHG
+
+    FROM (
+        SELECT
+            *,
+            ROW_NUMBER() OVER (
+                PARTITION BY ID_ORD, ID_SHIP
+                ORDER BY "rowid" DESC NULLS LAST, "rowversion" DESC NULLS LAST
+            ) AS RN
+        FROM BRONZE_DATA.TCM_BRONZE."CP_BILL_LADING_HIST_Bronze"
+    ) b
+    WHERE b.RN = 1
 )
 
 /* ============================================================
@@ -304,11 +395,61 @@ SELECT
     h.ID_QUOTE,
     h.ID_JOB,
     l.ID_EST,
-    l.LINE_ID_QUOTE
+    l.LINE_ID_QUOTE,
+
+    -- ── Bill of Lading ────────────────────────────────────
+    b.ID_VHCL,
+    b.ID_CARRIER,
+    b.NAME_CARRIER,
+    b.ACCT_SHIP_VIA,
+    b.BOL_CODE_SHIP_VIA_CP,
+    b.ID_PRO_BOL,
+    b.SEQ_STOP_BOL,
+    b.PNT_ORG,
+    b.BOL_ID_LOC,
+    b.ID_BATCH_INVC,
+    b.BOL_ID_INVC,
+    b.BOL_WGT_SHIP_TOTAL,
+    b.WGT_CONTENT,
+    b.QTY_CUBES,
+    b.BOL_QTY_CARTON,
+    b.QTY_PALLETS,
+    b.VOL_CONT,
+    b.QTY_CONT_1,
+    b.VOL_SHIP_NET,
+    b.FLAG_COL_PPD_FRT,
+    b.CODE_COL_PPD,
+    b.DESCR_COL_PPD,
+    b.AMT_COD,
+    b.AMT_COD_FC,
+    b.AMT_COD_FEE,
+    b.AMT_COD_FEE_FC,
+    b.BOL_ADDR_1,
+    b.BOL_ADDR_2,
+    b.BOL_ADDR_3,
+    b.BOL_ADDR_4,
+    b.ADDR_1_THIRD,
+    b.ADDR_2_THIRD,
+    b.CITY_THIRD,
+    b.ID_ST_THIRD,
+    b.COUNTRY_THIRD,
+    b.PROV_THIRD,
+    b.ZIP_THIRD,
+    b.DATE_DELIV_EARLIEST,
+    b.DATE_DELIV_LATEST,
+    b.REF_CUST,
+    b.FLAG_SHIP_COMP,
+    b.BOL_DATE_CREATED,
+    b.BOL_TIME_ADD,
+    b.BOL_ID_USER_ADD,
+    b.BOL_DATE_CHANGED,
+    b.BOL_TIME_CHG,
+    b.BOL_ID_USER_CHG
 
 FROM SHP_LIN l
 INNER JOIN SHP_HDR h
     ON l.ID_ORD  = h.ID_ORD
-   AND l.ID_SHIP = h.ID_SHIP;
-
---! bring in cp_lading_hist table
+   AND l.ID_SHIP = h.ID_SHIP
+LEFT JOIN BOL_HIST b
+    ON l.ID_ORD  = b.ID_ORD
+   AND l.ID_SHIP = b.ID_SHIP;
