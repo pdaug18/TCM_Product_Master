@@ -310,3 +310,5 @@ FROM SHP_LIN l
 INNER JOIN SHP_HDR h
     ON l.ID_ORD  = h.ID_ORD
    AND l.ID_SHIP = h.ID_SHIP;
+
+--! bring in cp_lading_hist table

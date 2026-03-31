@@ -306,7 +306,7 @@ ORD_COMMENTS AS (
         c.DATE_EST_SHIP,
         c.DATE_OLD_SHIP,
         c.COMMENT                   AS ORD_COMMENT,
-        c.LATE_CODE                 --! LATE_CODE values are defined as follows (per business)? [ NULL->79587,  1->307, 2->272, 9->48, 6->43, 3->10, 4->6, 5->4 ]
+        c.LATE_CODE                 --! LATE_CODE values are defined as follows (per business)? [ NULL->79587,  1->307, 2->272, 9->48, 6->43, 3->10, 4->6, 5->4 ]   LATE_ORDER_CODE table in TCM to get the description.
     FROM (
         SELECT
             ID_ORD,
@@ -357,25 +357,9 @@ LOC_DESC AS (
 PROD_CAT_CUST AS (
     SELECT
         pc.CODE_CAT_PRDT,
-        pc.CODE_TYPE_CUST,
         pc.DESCR                    AS PROD_CAT_DESCR
     FROM BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc
-    WHERE pc.CODE_TYPE_CUST <> ' '
-),
-
-/* ============================================================
-   PROD_CAT_DFLT — Product category description (default / generic)
-   Source: BRONZE_DATA.TCM_BRONZE.TABLES_CODE_CAT_PRDT_Bronze
-    This table contains default product category descriptions that are not specific to any customer type (CODE_TYPE_CUST = ' ').
-   ============================================================ */
-PROD_CAT_DFLT AS (
-    SELECT
-        pd.CODE_CAT_PRDT,
-        pd.DESCR                    AS PROD_CAT_DESCR
-    FROM BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pd
-    WHERE pd.CODE_TYPE_CUST = ' '
 )
-
 /* ============================================================
    FINAL SELECT — Order-line grain master table
    Header fields denormalized onto every line
@@ -427,8 +411,7 @@ SELECT
     l.LINE_ITEM_DESCRIPTION,
     l.CODE_CAT_PRDT,
     l.CODE_CAT_COST,
-    COALESCE(pcc.PROD_CAT_DESCR, pcd.PROD_CAT_DESCR)
-                                                    AS PROD_CAT_DESCR,
+    pcc.PROD_CAT_DESCR,
     l.CODE_CAT_PRDT || h.CODE_CUST_1               AS CONCAT_PROD_CAT,
 
     -- ── Quantities ────────────────────────────────────────
@@ -557,6 +540,3 @@ LEFT JOIN LOC_DESC ld
     ON l.ID_LOC = ld.ID_LOC
 LEFT JOIN PROD_CAT_CUST pcc
     ON l.CODE_CAT_PRDT = pcc.CODE_CAT_PRDT
-   AND h.CODE_CUST_1   = pcc.CODE_TYPE_CUST
-LEFT JOIN PROD_CAT_DFLT pcd
-    ON l.CODE_CAT_PRDT = pcd.CODE_CAT_PRDT;
