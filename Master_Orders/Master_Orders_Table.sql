@@ -325,6 +325,38 @@ ORD_COMMENTS AS (
 ),
 
 /* ============================================================
+   LINE_COMMENTS — Line-level comments from CP_COMMENT
+   Deduped to latest per order-line (ID_ORD + SEQ_LINE_ORD)
+   Source: BRONZE_DATA.TCM_BRONZE.CP_COMMENT_Bronze
+   ============================================================ */
+LINE_COMMENTS AS (
+    SELECT
+        lc.ID_ORD,
+        lc.SEQ_LINE_ORD,
+        lc.NOTE                     AS LINE_COMMENT_NOTE,
+        lc.CODE_COMMENT             AS LINE_COMMENT_CODE,
+        lc.CODE_QLFR                AS LINE_COMMENT_QLFR,
+        lc.REF                      AS LINE_COMMENT_REF,
+        lc.DATE_ADD                 AS LINE_COMMENT_DATE
+    FROM (
+        SELECT
+            ID_ORD,
+            SEQ_LINE_ORD,
+            NOTE,
+            CODE_COMMENT,
+            CODE_QLFR,
+            REF,
+            DATE_ADD,
+            ROW_NUMBER() OVER (
+                PARTITION BY ID_ORD, SEQ_LINE_ORD
+                ORDER BY "rowid" DESC NULLS LAST, "rowversion" DESC NULLS LAST
+            ) AS RN
+        FROM BRONZE_DATA.TCM_BRONZE."CP_COMMENT_Bronze"
+    ) lc
+    WHERE lc.RN = 1
+),
+
+/* ============================================================
    SLSREP — Sales representative name lookup
    Source: BRONZE_DATA.TCM_BRONZE.TABLES_SLSREP_Bronze
    ============================================================ */
@@ -526,6 +558,13 @@ SELECT
     c.ORD_COMMENT,
     c.LATE_CODE,
 
+    -- ── Line Comments (CP_COMMENT) ─────────────────────────
+    lc.LINE_COMMENT_NOTE,
+    lc.LINE_COMMENT_CODE,
+    lc.LINE_COMMENT_QLFR,
+    lc.LINE_COMMENT_REF,
+    lc.LINE_COMMENT_DATE,
+
     -- ── User ──────────────────────────────────────────────
     h.ID_USER_ADD
 
@@ -540,3 +579,6 @@ LEFT JOIN LOC_DESC ld
     ON l.ID_LOC = ld.ID_LOC
 LEFT JOIN PROD_CAT_CUST pcc
     ON l.CODE_CAT_PRDT = pcc.CODE_CAT_PRDT
+LEFT JOIN LINE_COMMENTS lc
+    ON l.ID_ORD = lc.ID_ORD
+    AND l.SEQ_LINE_ORD = lc.SEQ_LINE_ORD

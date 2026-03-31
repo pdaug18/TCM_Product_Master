@@ -44,3 +44,12 @@ where table_name = 'CP_BILL_LADING_HIST'
 order by ordinal_position
 
 select top 10 * from [nsa].[CP_BILL_LADING_HIST_Bronze]
+
+
+
+select column_name, data_type, character_maximum_length
+from information_schema.columns
+where table_name = 'CP_COMMENT'
+order by ordinal_position
+
+select top 10 * from [nsa].[CP_COMMENT]
