@@ -95,7 +95,7 @@ WITH BASE AS (
         mpt."Cost_Variable Burden_Standard",
         mpt."Cost_Material_Current_Calculated",
         mpt."Cost_Labor_Current_Calculated",
-        mpt."Cost_Material_Labor_Current_Calculated",
+        mpt."Cost_Total_Current_Calculated",
         il.id_planner                                                           AS "Item_Planned Classification",
         mpt."Item_Prop 65",
         sls."INVOICE DATE"                                                      AS "INVOICE DATE",

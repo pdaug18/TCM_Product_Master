@@ -318,7 +318,7 @@ item_planner AS (
             WHEN ic.COST_MATL_VA_CRNT IS NOT NULL AND ic.COST_LABOR_VA_CRNT IS NULL THEN ic.COST_MATL_VA_CRNT
             WHEN ic.COST_MATL_VA_CRNT IS NULL AND ic.COST_LABOR_VA_CRNT IS NOT NULL THEN ic.COST_LABOR_VA_CRNT
             ELSE 0
-        END AS "Cost_Material_Labor_Current_Calculated",
+        END AS "Cost_Total_Current_Calculated",
         ic.id_loc_src_cost_std                      AS "Cost_Location_Standard_Cost_Source_Location",
         b.type_cost                                 AS "Cost_Cost_Type",
         ic.date_accum_cost                          AS "Date_Cost_Accumulated",
