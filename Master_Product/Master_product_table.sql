@@ -3,7 +3,7 @@ target_lag = 'DOWNSTREAM'
 refresh_mode = AUTO 
 initialize = ON_CREATE 
 warehouse = ELT_DEFAULT
- as
+as
 /* ========================================
    ITMMAS_BASE — Base item master (kept)
    ======================================== */
@@ -291,9 +291,9 @@ item_planner AS (
         ic.COST_MATL_ACCUM_STD                      AS "Cost_Material_Accumulated_Standard",
         ic.COST_FB_VA_CRNT                          AS "Cost_Freight_Current",
         ic.COST_FB_VA_STD                           AS "Cost_Freight_Standard",
-        ic.COST_MATL_VA_CRNT                        AS "Cost_Material_Current", 
-        ic.COST_LABOR_VA_CRNT                       AS "Cost_Labor_Current",
+        ic.COST_MATL_VA_CRNT                        AS "Cost_Material_Current",
         ic.COST_MATL_VA_STD                         AS "Cost_Material_Standard",
+        ic.COST_LABOR_VA_CRNT                       AS "Cost_Labor_Current",
         ic.COST_LABOR_VA_STD                        AS "Cost_Labor_Standard",
         ic.COST_OUTP_VA_CRNT                        AS "Cost_Outside Service_Current",
         ic.COST_USER_VA_CRNT                        AS "Cost_User Field_Current",
@@ -303,6 +303,22 @@ item_planner AS (
         ic.COST_TOTAL_ACCUM_STD                     AS "Cost_Total_Standard",
         ic.COST_VB_VA_CRNT                          AS "Cost_Variable Burden_Current",
         ic.COST_VB_VA_STD                           AS "Cost_Variable Burden_Standard",
+        CASE 
+            WHEN ic.COST_MATL_VA_CRNT IS NOT NULL THEN ic.COST_MATL_VA_CRNT 
+            WHEN ic.COST_MATL_VA_STD IS NOT NULL THEN ic.COST_MATL_VA_STD
+            ELSE 0
+        END AS "Cost_Material_Current_Calculated", 
+        CASE 
+            WHEN ic.COST_LABOR_VA_CRNT IS NOT NULL THEN ic.COST_LABOR_VA_CRNT 
+            WHEN ic.COST_LABOR_VA_CRNT IS NOT NULL THEN ic.COST_LABOR_VA_CRNT
+            ELSE 0
+        END AS "Cost_Labor_Current_Calculated", 
+        CASE 
+            WHEN ic.COST_MATL_VA_CRNT IS NOT NULL AND ic.COST_LABOR_VA_CRNT IS NOT NULL THEN ic.COST_MATL_VA_CRNT + ic.COST_LABOR_VA_CRNT
+            WHEN ic.COST_MATL_VA_CRNT IS NOT NULL AND ic.COST_LABOR_VA_CRNT IS NULL THEN ic.COST_MATL_VA_CRNT
+            WHEN ic.COST_MATL_VA_CRNT IS NULL AND ic.COST_LABOR_VA_CRNT IS NOT NULL THEN ic.COST_LABOR_VA_CRNT
+            ELSE 0
+        END AS "Cost_Material_Labor_Current_Calculated",
         ic.id_loc_src_cost_std                      AS "Cost_Location_Standard_Cost_Source_Location",
         b.type_cost                                 AS "Cost_Cost_Type",
         ic.date_accum_cost                          AS "Date_Cost_Accumulated",
