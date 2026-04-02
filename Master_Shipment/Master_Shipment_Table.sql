@@ -350,7 +350,7 @@ SELECT
         h.AMT_FRT,
         -- h.TAX_SLS,
         h.AMT_CHRG_MISC,
-        h.AMT_FEE_RESTOCK,
+        -- h.AMT_FEE_RESTOCK,
 
     -- ── Invoice ───────────────────────────────────────────
         h.ID_INVC,
