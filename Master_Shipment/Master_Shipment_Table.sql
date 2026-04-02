@@ -303,7 +303,7 @@ SELECT
         -- l.QTY_BO,
         -- l.QTY_ALLOC,
         l.QTY_CARTON,
-        -- l.QTY_CARTON_PER,
+        l.QTY_CARTON_PER,
 
     -- -- ── Pricing ───────────────────────────────────────────
         -- l.PRICE_LIST_VP,
