@@ -90,7 +90,7 @@ WITH SHP_HDR AS (
         h.ID_QUOTE,
         h.ID_JOB
 
-    FROM BRONZE_DATA.TCM_BRONZE."CP_SHPHDR_Bronze" h
+    FROM BRONZE_DATA.TCM_BRONZE."cp_shphdr_perm_Bronze" h
 ),
 
 /* ============================================================
@@ -165,7 +165,7 @@ SHP_LIN AS (
         -- Freight
         l.CODE_FRT
 
-    FROM BRONZE_DATA.TCM_BRONZE."CP_SHPLIN_Bronze" l
+    FROM BRONZE_DATA.TCM_BRONZE."cp_shplin_perm_Bronze" l
 ),
 
 /* ============================================================
