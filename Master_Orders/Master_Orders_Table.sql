@@ -495,11 +495,11 @@ SELECT
     l.LINE_DATE_INVC_LAST,
     l.DATE_REL,
 
-    -- ── Promise Date Dimensions ───────────────────────────
-    YEAR(l.DATE_PROM)                               AS DATE_PROM_YEAR,
-    QUARTER(l.DATE_PROM)                            AS DATE_PROM_QUARTER,
-    MONTH(l.DATE_PROM)                              AS DATE_PROM_MONTH,
-    YEAR(l.DATE_PROM) * 100 + MONTH(l.DATE_PROM)   AS DATE_PROM_YEARMONTH,
+    -- -- ── Promise Date Dimensions ───────────────────────────
+    -- YEAR(l.DATE_PROM)                               AS DATE_PROM_YEAR,
+    -- QUARTER(l.DATE_PROM)                            AS DATE_PROM_QUARTER,
+    -- MONTH(l.DATE_PROM)                              AS DATE_PROM_MONTH,
+    -- YEAR(l.DATE_PROM) * 100 + MONTH(l.DATE_PROM)   AS DATE_PROM_YEARMONTH,
 
     -- ── Shipping ──────────────────────────────────────────
     h.ID_LOC_SHIPFM,
