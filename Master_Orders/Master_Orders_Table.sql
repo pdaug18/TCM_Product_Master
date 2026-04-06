@@ -354,7 +354,7 @@ LINE_COMMENTS AS (
         FROM BRONZE_DATA.TCM_BRONZE."CP_COMMENT_Bronze"
     ) lc
     WHERE lc.RN = 1
-),
+)
 
 /* ============================================================
    SLSREP — Sales representative name lookup
@@ -371,12 +371,12 @@ LINE_COMMENTS AS (
    LOC_DESC — Location description lookup
    Source: BRONZE_DATA.TCM_BRONZE.TABLES_LOC_Bronze
    ============================================================ */
-LOC_DESC AS (
-    SELECT
-        loc.ID_LOC,
-        loc.DESCR                   AS LOC_DESCRIPTION
-    FROM BRONZE_DATA.TCM_BRONZE."TABLES_LOC_Bronze" loc
-),
+-- LOC_DESC AS (
+--     SELECT
+--         loc.ID_LOC,
+--         loc.DESCR                   AS LOC_DESCRIPTION
+--     FROM BRONZE_DATA.TCM_BRONZE."TABLES_LOC_Bronze" loc
+-- ),
 
 /* ============================================================
    PROD_CAT_CUST — Product category description (customer-type-specific)
@@ -386,12 +386,12 @@ LOC_DESC AS (
    product category description for each order line, 
    based on the customer type associated with the order.
    ============================================================ */
-PROD_CAT_CUST AS (
-    SELECT
-        pc.CODE_CAT_PRDT,
-        pc.DESCR                    AS PROD_CAT_DESCR
-    FROM BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc
-)
+-- PROD_CAT_CUST AS (
+--     SELECT
+--         pc.CODE_CAT_PRDT,
+--         pc.DESCR                    AS PROD_CAT_DESCR
+--     FROM BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc
+-- )
 /* ============================================================
    FINAL SELECT — Order-line grain master table
    Header fields denormalized onto every line
@@ -439,11 +439,11 @@ SELECT
     l.ID_ITEM_CUST,
     l.ID_CONFIG,
     l.ID_LOC,
-    ld.LOC_DESCRIPTION,
+    -- ld.LOC_DESCRIPTION,
     l.LINE_ITEM_DESCRIPTION,
     l.CODE_CAT_PRDT,
     l.CODE_CAT_COST,
-    pcc.PROD_CAT_DESCR,
+    -- pcc.PROD_CAT_DESCR,
     l.CODE_CAT_PRDT || h.CODE_CUST_1               AS CONCAT_PROD_CAT,
 
     -- ── Quantities ────────────────────────────────────────
@@ -573,12 +573,12 @@ INNER JOIN ORD_HDR h
     ON l.ID_ORD = h.ID_ORD
 LEFT JOIN ORD_COMMENTS c
     ON l.ID_ORD = c.ID_ORD
--- LEFT JOIN SLSREP sr
---     ON h.ID_SLSREP_1 = sr.ID_SLSREP
-LEFT JOIN LOC_DESC ld
-    ON l.ID_LOC = ld.ID_LOC
-LEFT JOIN PROD_CAT_CUST pcc
-    ON l.CODE_CAT_PRDT = pcc.CODE_CAT_PRDT
 LEFT JOIN LINE_COMMENTS lc
     ON l.ID_ORD = lc.ID_ORD
     AND l.SEQ_LINE_ORD = lc.SEQ_LINE_ORD
+-- LEFT JOIN SLSREP sr
+--     ON h.ID_SLSREP_1 = sr.ID_SLSREP
+-- LEFT JOIN LOC_DESC ld
+--     ON l.ID_LOC = ld.ID_LOC
+-- LEFT JOIN PROD_CAT_CUST pcc
+--     ON l.CODE_CAT_PRDT = pcc.CODE_CAT_PRDT
