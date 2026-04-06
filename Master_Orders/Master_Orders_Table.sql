@@ -360,12 +360,12 @@ LINE_COMMENTS AS (
    SLSREP — Sales representative name lookup
    Source: BRONZE_DATA.TCM_BRONZE.TABLES_SLSREP_Bronze
    ============================================================ */
-SLSREP AS (
-    SELECT
-        sr.ID_SLSREP,
-        sr.NAME_SLSREP
-    FROM BRONZE_DATA.TCM_BRONZE."TABLES_SLSREP_Bronze" sr
-),
+-- SLSREP AS (
+--     SELECT
+--         sr.ID_SLSREP,
+--         sr.NAME_SLSREP
+--     FROM BRONZE_DATA.TCM_BRONZE."TABLES_SLSREP_Bronze" sr
+-- ),
 
 /* ============================================================
    LOC_DESC — Location description lookup
@@ -426,7 +426,7 @@ SELECT
 
     -- ── Sales Rep ─────────────────────────────────────────
     h.ID_SLSREP_1,
-    sr.NAME_SLSREP                                  AS SLSREP_1_NAME,
+    -- sr.NAME_SLSREP                                  AS SLSREP_1_NAME,
     h.ID_SLSREP_2,
     h.ID_SLSREP_3,
     h.PCT_SPLIT_COMMSN_1,
@@ -573,8 +573,8 @@ INNER JOIN ORD_HDR h
     ON l.ID_ORD = h.ID_ORD
 LEFT JOIN ORD_COMMENTS c
     ON l.ID_ORD = c.ID_ORD
-LEFT JOIN SLSREP sr
-    ON h.ID_SLSREP_1 = sr.ID_SLSREP
+-- LEFT JOIN SLSREP sr
+--     ON h.ID_SLSREP_1 = sr.ID_SLSREP
 LEFT JOIN LOC_DESC ld
     ON l.ID_LOC = ld.ID_LOC
 LEFT JOIN PROD_CAT_CUST pcc
