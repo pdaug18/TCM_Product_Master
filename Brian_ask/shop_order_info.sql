@@ -1,0 +1,163 @@
+create or replace view SILVER_DATA.TCM_SILVER.SHOP_ORDER_INFO(
+	RTO_HR_MACH_SR,
+	RTOWC,
+	HR_LABOR_SF,
+	SOPERWC,
+	ID_RTE,
+	SOWC,
+	MACH_SR_LABOR_SF,
+	SHOP_ORDER_LOCATION,
+	O_QTY_CMPL,
+	O_QTY_ORD,
+	ID_ITEM_PAR,
+	DATE_START_OPER_1ST,
+	TIME_START_OPER_1ST,
+	STAT_REC_SO,
+	STAT_REC_OPER,
+	DATE_ADD,
+	DATE_DUE_ORD,
+	"ShopOrder#",
+	SUFX_SO,
+	SH_SO_AND_SUFX,
+	DESCR_ITEM_1,
+	DESCR_ITEM_2,
+	ID_OPER,
+	SA_SO_AND_SUFX,
+	DATE_APPROVED,
+	DATETIME_APPROVED,
+	TIME_APPROVED,
+	FLAG_STK,
+	FLAG_SOURCE,
+	MATERIAL_CODE,
+	ID_PLANNER,
+	STKLIST_ITEM,
+	LEVEL_ROP,
+	SOFROMPREPROD
+) as
+SELECT
+    rto.HR_MACH_SR AS RTO_HR_MACH_SR,
+    rto.ID_WC AS rtoWC,
+    so.HR_LABOR_SF,
+    so.ID_WC AS soperWC,
+    rto.ID_RTE,
+
+    -- soWC
+    CASE
+        WHEN rto.ID_WC IS NULL THEN so.ID_WC
+        ELSE rto.ID_WC
+    END AS soWC,
+
+    -- MACH_SR_LABOR_SF
+    CASE
+        WHEN rto.ID_WC IS NULL THEN so.HR_LABOR_SF
+        ELSE rto.HR_MACH_SR
+    END AS MACH_SR_LABOR_SF,
+
+    sh.ID_LOC AS SHOP_ORDER_LOCATION,
+    so.QTY_CMPL AS O_QTY_CMPL,
+    so.QTY_ORD AS O_QTY_ORD,
+
+    sh.ID_ITEM_PAR,
+    sh.DATE_START_OPER_1ST,
+    sh.TIME_START_OPER_1ST,
+
+    sh.STAT_REC_SO,
+    so.STAT_REC_OPER,
+    sh.DATE_ADD,
+    sh.DATE_DUE_ORD,
+
+    LTRIM(sh.ID_SO) AS "ShopOrder#",
+    sh.SUFX_SO,
+    CONCAT(LTRIM(sh.ID_SO), sh.SUFX_SO) AS sh_SO_AND_sufx,
+
+    sh.DESCR_ITEM_1,
+    sh.DESCR_ITEM_2,
+
+    so.ID_OPER,
+
+    sap.sa_SO_AND_sufx,
+    sap.DATE_APPROVED,
+    sap.DATETIME_APPROVED,
+    sap.TIME_APPROVED,
+
+    il.FLAG_STK,
+    il.FLAG_SOURCE,
+    ib.CODE_USER_1_IM AS MATERIAL_CODE,
+    il.ID_PLANNER,
+
+    -- for material qty
+    sl.ID_ITEM AS Stklist_Item,
+    ro.LEVEL_ROP,
+    SOFromPreProd
+
+FROM BRONZE_DATA.TCM_BRONZE."SHPORD_HDR_Bronze" sh
+
+LEFT JOIN BRONZE_DATA.TCM_BRONZE."SHPORD_OPER_Bronze" so
+    --nsa.shpord_oper so
+    ON sh.ID_SO = so.ID_SO
+   AND sh.SUFX_SO = so.SUFX_SO
+
+LEFT JOIN BRONZE_DATA.TCM_BRONZE."ROUTMS_OPER_Bronze" rto
+    --nsa.routms_oper rto
+    ON sh.ID_ITEM_PAR = rto.ID_ITEM
+   AND so.ID_OPER = rto.ID_OPER
+
+LEFT JOIN
+(
+    SELECT DISTINCT
+        CONCAT(LTRIM(ID_SO), SUFX_SO) AS sa_SO_AND_sufx,
+        MIN(DATETIME_APPROVED) AS DATETIME_APPROVED,
+        MIN(TIME_APPROVED) AS TIME_APPROVED,
+        MIN(DATE_APPROVED) AS DATE_APPROVED
+    FROM BRONZE_DATA.TCM_BRONZE."SHPORD_APPROVE_Bronze"
+    --nsa.SHPORD_APPROVE
+    GROUP BY CONCAT(LTRIM(ID_SO), SUFX_SO)
+) sap
+    ON CONCAT(LTRIM(sh.ID_SO), sh.SUFX_SO) = sap.sa_SO_AND_sufx
+
+LEFT JOIN
+    BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC_Bronze" il
+    --nsa.ITMMAS_LOC il
+    ON sh.ID_ITEM_PAR = il.ID_ITEM
+   AND sh.ID_LOC = il.ID_LOC
+   -- = '10'
+
+LEFT JOIN
+    --for material qty
+    BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+    --nsa.ITMMAS_BASE ib
+    ON sh.ID_ITEM_PAR = ib.ID_ITEM
+
+LEFT JOIN
+(
+    SELECT DISTINCT
+        LTRIM(ID_SO) AS SOFromPreProd,
+        SUFX_SO
+    FROM BRONZE_DATA.TCM_BRONZE."OP_JOB_CARDS_ON_FLOOR_Bronze"
+    --nsa.OP_JOB_CARDS_ON_FLOOR
+) sop
+    ON LTRIM(sh.ID_SO) = sop.SOFromPreProd
+   AND sh.SUFX_SO = sop.SUFX_SO
+
+-- for Minimum to Optimal
+LEFT JOIN
+    BRONZE_DATA.TCM_BRONZE."ITMMAS_STK_LIST_Bronze" sl
+    --nsa.ITMMAS_STK_LIST sl
+    ON sh.ID_ITEM_PAR = sl.ID_ITEM
+
+LEFT JOIN
+    BRONZE_DATA.TCM_BRONZE."ITMMAS_REORD_Bronze" ro--NSA.ITMMAS_REORD ro
+    ON sh.ID_ITEM_PAR = ro.ID_ITEM
+   AND sh.ID_LOC = ro.ID_LOC_HOME
+   -- = '10'
+
+WHERE sh.STAT_REC_SO IN ('A','R','S','U')
+  AND so.STAT_REC_OPER IN ('P','R','A','C')
+  AND (rto.ID_RTE = 'TSS' OR rto.ID_RTE IS NULL)
+  AND sh.ID_SO NOT LIKE 'PROD%'
+  AND sh.ID_SO NOT LIKE 'SAMPLE%'
+  AND sh.DATE_ADD >= '2020-01-01'
+  AND sh.STAT_REC_SO <> 'C'
+  AND sh.STAT_REC_SO <> 'E'
+  --AND sh.ID_LOC = '10'
+;
