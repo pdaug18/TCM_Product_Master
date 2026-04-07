@@ -41,7 +41,8 @@ WITH ORD_HDR AS (
 
         -- Dates
         h.DATE_ORD,
-        h.DATE_ADD                  AS ORD_DATE_CREATED,
+        h.DATE_ACKN_LAST,
+        h.DATE_ADD                  AS "Date_Order_Created",
         h.DATE_BOOK_LAST,
         h.DATE_SHIP_LAST            AS HDR_DATE_SHIP_LAST,
         h.DATE_INVC_LAST            AS HDR_DATE_INVC_LAST,
@@ -114,7 +115,8 @@ WITH ORD_HDR AS (
         p.PCT_COMMSN,
 
         p.DATE_ORD,
-        p.DATE_ADD                  AS ORD_DATE_CREATED,
+        p.DATE_ACKN_LAST,
+        p.DATE_ADD                  AS "Date_Order_Created",
         p.DATE_BOOK_LAST,
         p.DATE_SHIP_LAST            AS HDR_DATE_SHIP_LAST,
         p.DATE_INVC_LAST            AS HDR_DATE_INVC_LAST,
@@ -196,6 +198,7 @@ ORD_LIN AS (
         -- Dates (line-level)
         l.DATE_RQST,
         l.DATE_PROM,
+        l.DATE_ACKN_LAST,
         l.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
         l.DATE_SHIP_LAST            AS LINE_DATE_SHIP_LAST,
         l.DATE_INVC_LAST            AS LINE_DATE_INVC_LAST,
@@ -266,6 +269,7 @@ ORD_LIN AS (
 
         p.DATE_RQST,
         p.DATE_PROM,
+        p.DATE_ACKN_LAST,
         p.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
         p.DATE_SHIP_LAST            AS LINE_DATE_SHIP_LAST,
         p.DATE_INVC_LAST            AS LINE_DATE_INVC_LAST,
@@ -364,48 +368,48 @@ LINE_COMMENTS AS (
    ============================================================ */
 SELECT
     -- ── Order Key ─────────────────────────────────────────
-    l.ID_ORD,
-    l.SEQ_LINE_ORD,
+    l.ID_ORD as "Order ID",
+    l.SEQ_LINE_ORD as "Order_Sequence Line Number",
 
-    -- ── Source Tables ─────────────────────────────────────
-    h.HDR_SOURCE_TABLE,
-    l.LIN_SOURCE_TABLE,
+    -- -- ── Source Tables ─────────────────────────────────────
+        -- h.HDR_SOURCE_TABLE,
+        -- l.LIN_SOURCE_TABLE,
 
     -- ── Customer ──────────────────────────────────────────
-    h.ID_CUST_SOLDTO,
-    h.SEQ_SHIPTO,
-    h.ID_CUST_BILLTO,
-    h.NAME_CUST,
-    h.NAME_CUST_SHIPTO,
-    h.ID_PO_CUST,
+        h.ID_CUST_SOLDTO as "Customer_ID_Sold-To",
+        h.SEQ_SHIPTO as "Customer_End_User_Ship_To_Sequence_#",
+        -- h.ID_CUST_BILLTO,
+        h.NAME_CUST as "Customer_Name_Sold-To",
+        h.NAME_CUST_SHIPTO as "Customer_Name_Ship-To",
+        h.ID_PO_CUST as "Customer_Customer Purchase_Order_ID",
 
     -- ── Order Classification ──────────────────────────────
-    h.TYPE_ORD_CP,
-    h.CODE_STAT_ORD,
+        h.TYPE_ORD_CP as "Order_Type",
+        h.CODE_STAT_ORD as "Order_Status_Code",
 
     -- ── Customer Type Codes ───────────────────────────────
-    h.CODE_CUST_1,
-    h.CODE_CUST_2,
-    h.CODE_CUST_3,
+        h.CODE_CUST_1 as "Customer_Code_1",
+        h.CODE_CUST_2 as "Customer_Code_2",
+        h.CODE_CUST_3 as "Customer_Code_3",
 
     -- ── Sales Rep ─────────────────────────────────────────
-    h.ID_SLSREP_1,
-    h.ID_SLSREP_2,
-    h.ID_SLSREP_3,
-    h.PCT_SPLIT_COMMSN_1,
-    h.PCT_SPLIT_COMMSN_2,
-    h.PCT_SPLIT_COMMSN_3,
-    h.PCT_COMMSN,
+        h.ID_SLSREP_1 as "ID_Sales_Rep 1",
+        h.ID_SLSREP_2 as "ID_Sales_Rep 2",
+        h.ID_SLSREP_3 as "ID_Sales_Rep 3",
+        -- h.PCT_SPLIT_COMMSN_1,
+        -- h.PCT_SPLIT_COMMSN_2,
+        -- h.PCT_SPLIT_COMMSN_3,
+        -- h.PCT_COMMSN,
 
     -- ── Item (line-level) ─────────────────────────────────
-    l.ID_ITEM,
-    l.ID_ITEM_CUST,
-    l.ID_CONFIG,
-    l.ID_LOC,
-    l.LINE_ITEM_DESCRIPTION,
-    l.CODE_CAT_PRDT,
-    l.CODE_CAT_COST,
-    l.CODE_CAT_PRDT || h.CODE_CUST_1               AS CONCAT_PROD_CAT,
+        l.ID_ITEM as "Item ID_Child SKU",
+        l.ID_ITEM_CUST as "Item ID_Customer SKU",
+        -- l.ID_CONFIG,
+        -- l.ID_LOC,
+        -- l.LINE_ITEM_DESCRIPTION,
+        -- l.CODE_CAT_PRDT,
+        -- l.CODE_CAT_COST,
+        -- l.CODE_CAT_PRDT || h.CODE_CUST_1               AS CONCAT_PROD_CAT,
 
     -- ── Quantities ────────────────────────────────────────
     l.QTY_ORG,
@@ -423,7 +427,7 @@ SELECT
     l.PRICE_SELL_VP,
     l.PRICE_SELL_NET_VP,
     l.COST_UNIT_VP,
-    l.PRICE_NET,
+    l.PRICE_NET as "Total_Price",
 
     -- ── Pricing (decoded numeric) ─────────────────────────
     --   VP format: RIGHT(field, 10) gives mantissa; /10000 scales
@@ -444,13 +448,15 @@ SELECT
     l.AMT_COMMSN,
 
     -- ── Dates (header-level) ──────────────────────────────
-    h.DATE_ORD,
-    h.ORD_DATE_CREATED,
-    h.DATE_BOOK_LAST,
+    h.DATE_ORD as "Date_Ordered",
+    h."Date_Order_Created",
+    h.DATE_BOOK_LAST as "Date_Last_Booked",
+    --THIS IS CALCULATED and NEEDS TO BE 2 WEEKS FROM ORDER DATE CREATED - check the logic in the reports though to make sure there are no special nuances
+    h.DATE_ACKN_LAST as	"Date_Acknowledged_Last",
 
     -- ── Dates (line-level) ────────────────────────────────
-    l.DATE_RQST,
-    l.DATE_PROM,
+    l.DATE_RQST as "Date_Requested_By",
+    l.DATE_PROM as "Date_Promised",
     l.LINE_DATE_BOOK_LAST,
     l.LINE_DATE_SHIP_LAST,
     l.LINE_DATE_INVC_LAST,

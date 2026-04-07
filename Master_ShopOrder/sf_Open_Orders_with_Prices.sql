@@ -11,18 +11,18 @@ Gap list (not present in current master_* outputs) with OOwP_temp source lineage
 4) DATE_CALC_START
 	- Source: ol.DATE_RQST/DATE_PROM/DATE_ADD/FLAG_STK (CP_ORDLIN), oh.ID_CUST_SOLDTO/DATE_ORD (CP_ORDHDR), ilPAR.ID_PLANNER (ITMMAS_LOC).
 	- Logic: business CASE using nsa.AddWorkDays with customer and planner/stock exceptions.
-5) DATE_CALC_END
+5) DATE_CALC_END --! Use DIM calendar in DIM > Calendar 
 	- Source: same inputs as DATE_CALC_START.
 	- Logic: business CASE using nsa.AddWorkDays(10, ...) with same exception branches.
 6) id_item_comp
 	- Source: ps.ID_ITEM_COMP from ps subquery (nsa.PRDSTR joined to nsa.ITMMAS_BASE with code_comm = 'FG').
-7) alt_stk
+7) alt_stk; lookinto shoporder master
 	- Source: sh.ID_BUYER (nsa.SHPORD_HDR), il.QTY_ONHD (nsa.ITMMAS_LOC), ir.LEVEL_ROP (nsa.ITMMAS_REORD).
 	- Logic: CASE returns AS/KT/'' by buyer and stocking checks.
 8) FLAG_MO
 	- Source: MO subquery using nsa.CP_ORDHDR_CUSTOM_COMMENTS (FLAG_DEL <> 'D').
 	- Logic: CASE when comment like '%#MO%' then 'Y' else 'N'.
-9) STOCK_STATUS
+9) STOCK_STATUS look into item master and item inventory master
 	- Source: ib.CODE_COMM (ITMMAS_BASE), il.FLAG_STK (ITMMAS_LOC), ir.LEVEL_ROP (ITMMAS_REORD), chk.KIT_AS_flag_stk (derived kit subquery).
 	- Logic: CASE => '3-FABRIC' / '1-STOCK' / '2-MTO'.
 10) Qty_Start
@@ -35,19 +35,19 @@ Gap list (not present in current master_* outputs) with OOwP_temp source lineage
 	- Source: WPR_PND subquery from nsa.SHPORD_HDR where STAT_REC_SO = 'R' and ID_ITEM_PAR like '%#'.
 13) Qty_Start_PND
 	- Source: WPS_PND subquery from nsa.SHPORD_HDR where STAT_REC_SO = 'S' and ID_ITEM_PAR like '%#'.
-14) SBNB
+14) SBNB    look into shipment master table
 	- Source: tSBNB subquery from nsa.CP_SHPLIN.
 	- Logic: sum(QTY_SHIP) by ID_ITEM, ID_LOC where FLAG_CONFIRM_SHIP <> 1.
-15) BIN_PRIM
+15) BIN_PRIM look into item_iventory master
 	- Source: il.BIN_PRIM from nsa.ITMMAS_LOC (component-aware join path in OOwP).
-16) stk_test
+16) stk_test    item_invetory master
 	- Source: ir.LEVEL_ROP (ITMMAS_REORD) and il.FLAG_STK (ITMMAS_LOC).
 	- Logic: CASE when LEVEL_ROP > 1 and flag_stk = 'S' then 1 else 0.
-17) STAT_REC_SO_display
+17) STAT_REC_SO_display --! Not needed yet
 	- Source: sh.STAT_REC_SO/DATE_START_OPER_1ST (SHPORD_HDR), so3999/so9999.STAT_REC_OPER (SHPORD_OPER), ilPAR.ID_PLANNER (ITMMAS_LOC).
 	- Logic: business CASE that remaps SO status to R/W/D under operation/planner conditions.
-18) CREDIT_STATUS
-	- Source: cs.STATUS_CREDIT from nsa.CP_CREDIT_STS (joined on ID_ORD with TYPE_REC = 0).
+18) CREDIT_STATUS 
+	- Source: cs.STATUS_CREDIT from nsa.CP_CREDIT_STS (joined on ID_ORD with TYPE_REC = 0). lookinto customer master
 	- Logic: CASE 0 -> 'H', 1 -> 'R'.
 
 Notes:
@@ -132,8 +132,10 @@ SELECT DISTINCT
 	1 AS COUNTER,
 	o.ID_LOC
 FROM SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE o
-LEFT JOIN SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE wc ON TRIM(o.ID_SO) = TRIM(wc."ShopOrder#") AND o.SUFX_SO = wc.SUFX_SO
-LEFT JOIN SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER inv ON o.ID_ITEM = inv."Product_ID_SKU" AND o.ID_LOC = inv."Location_ID"
+LEFT JOIN SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE wc ON TRIM(o.ID_SO) = TRIM(wc."ShopOrder#") 
+-- AND o.SUFX_SO = wc.SUFX_SO
+LEFT JOIN SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER inv ON o.ID_ITEM = inv."Product_ID_SKU" 
+-- AND o.ID_LOC = inv."Location_ID"
 LEFT JOIN SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE i ON o.ID_ITEM = i."Item ID_Child SKU"
 LEFT JOIN SHIP_LINE sl ON o.ID_ORD = sl.ID_ORD AND o.SEQ_LINE_ORD = sl.SEQ_LINE_ORD
 LEFT JOIN SHIP_ORD so ON o.ID_ORD = so.ID_ORD;

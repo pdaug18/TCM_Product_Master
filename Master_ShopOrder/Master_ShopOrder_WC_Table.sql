@@ -152,17 +152,6 @@ PREPROD AS (
 ),
 
 /* ============================================================
-   STK_LIST — Stock list item linkage
-   DISTINCT to prevent fan-out when an item has multiple entries
-   Source: BRONZE_DATA.TCM_BRONZE."ITMMAS_STK_LIST_Bronze"
-   ============================================================ */
-STK_LIST AS (
-    SELECT DISTINCT
-        sl.ID_ITEM                      AS STKLIST_ITEM
-    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_STK_LIST_Bronze" AS sl
-),
-
-/* ============================================================
    SO_OPER_AGG — Operation metrics rolled up to header level
    Grain: 1 row per (ID_LOC, ID_SO, SUFX_SO)
    Source: BRONZE_DATA.TCM_BRONZE."SHPORD_OPER_Bronze"
@@ -287,8 +276,6 @@ SELECT
     h.ID_DRAW,
     h.ID_REV_DRAW,
 
-    -- ── Item Attributes ───────────────────────────────────
-    sl.STKLIST_ITEM,
 
     -- ── Pre-Production Floor ──────────────────────────────
     sop.SOFROMPREPROD,
@@ -350,10 +337,6 @@ LEFT JOIN SO_APPROVE sap
 LEFT JOIN PREPROD sop
     ON  LTRIM(h.ID_SO) = sop.SOFROMPREPROD
     AND h.SUFX_SO      = sop.SUFX_SO
-
--- Stock list linkage
-LEFT JOIN STK_LIST sl
-    ON  h.ID_ITEM_PAR = sl.STKLIST_ITEM
 
 
 -- Operation aggregates (denormalized onto each operation row)
