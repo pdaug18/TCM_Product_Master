@@ -357,42 +357,6 @@ LINE_COMMENTS AS (
 )
 
 /* ============================================================
-   SLSREP — Sales representative name lookup
-   Source: BRONZE_DATA.TCM_BRONZE.TABLES_SLSREP_Bronze
-   ============================================================ */
--- SLSREP AS (
---     SELECT
---         sr.ID_SLSREP,
---         sr.NAME_SLSREP
---     FROM BRONZE_DATA.TCM_BRONZE."TABLES_SLSREP_Bronze" sr
--- ),
-
-/* ============================================================
-   LOC_DESC — Location description lookup
-   Source: BRONZE_DATA.TCM_BRONZE.TABLES_LOC_Bronze
-   ============================================================ */
--- LOC_DESC AS (
---     SELECT
---         loc.ID_LOC,
---         loc.DESCR                   AS LOC_DESCRIPTION
---     FROM BRONZE_DATA.TCM_BRONZE."TABLES_LOC_Bronze" loc
--- ),
-
-/* ============================================================
-   PROD_CAT_CUST — Product category description (customer-type-specific)
-   Source: BRONZE_DATA.TCM_BRONZE.TABLES_CODE_CAT_PRDT_Bronze
-   This table contains product category descriptions specific to each customer type (CODE_TYPE_CUST). 
-   Joining on both CODE_CAT_PRDT and CODE_TYPE_CUST allows us to retrieve the most relevant 
-   product category description for each order line, 
-   based on the customer type associated with the order.
-   ============================================================ */
--- PROD_CAT_CUST AS (
---     SELECT
---         pc.CODE_CAT_PRDT,
---         pc.DESCR                    AS PROD_CAT_DESCR
---     FROM BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc
--- )
-/* ============================================================
    FINAL SELECT — Order-line grain master table
    Header fields denormalized onto every line
    Reference lookups: sales rep name, location, product category
@@ -426,7 +390,6 @@ SELECT
 
     -- ── Sales Rep ─────────────────────────────────────────
     h.ID_SLSREP_1,
-    -- sr.NAME_SLSREP                                  AS SLSREP_1_NAME,
     h.ID_SLSREP_2,
     h.ID_SLSREP_3,
     h.PCT_SPLIT_COMMSN_1,
@@ -439,11 +402,9 @@ SELECT
     l.ID_ITEM_CUST,
     l.ID_CONFIG,
     l.ID_LOC,
-    -- ld.LOC_DESCRIPTION,
     l.LINE_ITEM_DESCRIPTION,
     l.CODE_CAT_PRDT,
     l.CODE_CAT_COST,
-    -- pcc.PROD_CAT_DESCR,
     l.CODE_CAT_PRDT || h.CODE_CUST_1               AS CONCAT_PROD_CAT,
 
     -- ── Quantities ────────────────────────────────────────
@@ -494,12 +455,6 @@ SELECT
     l.LINE_DATE_SHIP_LAST,
     l.LINE_DATE_INVC_LAST,
     l.DATE_REL,
-
-    -- -- ── Promise Date Dimensions ───────────────────────────
-    -- YEAR(l.DATE_PROM)                               AS DATE_PROM_YEAR,
-    -- QUARTER(l.DATE_PROM)                            AS DATE_PROM_QUARTER,
-    -- MONTH(l.DATE_PROM)                              AS DATE_PROM_MONTH,
-    -- YEAR(l.DATE_PROM) * 100 + MONTH(l.DATE_PROM)   AS DATE_PROM_YEARMONTH,
 
     -- ── Shipping ──────────────────────────────────────────
     h.ID_LOC_SHIPFM,
@@ -576,9 +531,3 @@ LEFT JOIN ORD_COMMENTS c
 LEFT JOIN LINE_COMMENTS lc
     ON l.ID_ORD = lc.ID_ORD
     AND l.SEQ_LINE_ORD = lc.SEQ_LINE_ORD
--- LEFT JOIN SLSREP sr
---     ON h.ID_SLSREP_1 = sr.ID_SLSREP
--- LEFT JOIN LOC_DESC ld
---     ON l.ID_LOC = ld.ID_LOC
--- LEFT JOIN PROD_CAT_CUST pcc
---     ON l.CODE_CAT_PRDT = pcc.CODE_CAT_PRDT
