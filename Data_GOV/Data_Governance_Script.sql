@@ -2,9 +2,11 @@
 -- Works for tables and views. Dynamic tables are covered when exposed via INFORMATION_SCHEMA.TABLES.
 -- Replace the parameter placeholders or SET from an upstream procedure/task.
 
+-- SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER
+
 SET DB_NAME = 'SILVER_DATA';        -- Set to the database containing the object
 SET SCHEMA_NAME = 'TCM_SILVER';  -- Set to the schema containing the object
-SET OBJECT_NAME = 'MASTER_BOOKING_HISTORY_TABLE';  -- Set to the table or view name to profile
+SET OBJECT_NAME = 'ITEM_INVENTORY_MASTER';  -- Set to the table or view name to profile
 
 -- Profiling controls: for large objects, set PROFILE_ON_SAMPLE = TRUE to reduce scan cost.
 SET PROFILE_ON_SAMPLE = FALSE;  -- Set to TRUE to enable sampling for profiling (uses SAMPLE BERNOULLI)
@@ -158,7 +160,7 @@ BEGIN
 	LET PROFILING_SQL STRING;
 
 	SELECT
-		'CREATE OR REPLACE TEMP TABLE TMP_GOV_COLUMN_PROFILE AS '
+		'CREATE OR REPLACE TEMP TABLE SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_PROFILE AS '
 		|| LISTAGG(sql_fragment, ' UNION ALL ') WITHIN GROUP (ORDER BY ordinal_position)
 	INTO :PROFILING_SQL
 	FROM (
@@ -169,7 +171,7 @@ BEGIN
 				data_type_full,
 				'"' || REPLACE(column_name, '"', '""') || '"' AS col_ref,
 				UPPER(SPLIT_PART(data_type_full, '(', 1)) AS data_type_base
-			FROM TMP_GOV_COLUMN_BASE
+			FROM SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_BASE
 			ORDER BY ordinal_position
 		),
 		q AS (
@@ -247,11 +249,11 @@ SELECT
 	s.masking_policy_name,
 	s.tags,
 	b.last_altered
-FROM TMP_GOV_COLUMN_BASE b
-LEFT JOIN TMP_GOV_COLUMN_PROFILE p
+FROM SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_BASE b
+LEFT JOIN SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_PROFILE p
 	ON b.column_name = p.column_name
    AND b.ordinal_position = p.ordinal_position
-LEFT JOIN TMP_GOV_COLUMN_SECURITY s
+LEFT JOIN SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_SECURITY s
 	ON UPPER(b.object_name) = s.object_name
    AND UPPER(b.column_name) = s.column_name
 ORDER BY b.ordinal_position;
