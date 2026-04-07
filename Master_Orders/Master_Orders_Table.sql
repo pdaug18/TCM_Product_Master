@@ -41,6 +41,7 @@ WITH ORD_HDR AS (
 
         -- Dates
         h.DATE_ORD,
+        h.DATE_PICK_LAST,
         h.DATE_ACKN_LAST,
         h.DATE_ADD                  AS "Date_Order_Created",
         h.DATE_BOOK_LAST,
@@ -115,6 +116,7 @@ WITH ORD_HDR AS (
         p.PCT_COMMSN,
 
         p.DATE_ORD,
+        p.DATE_PICK_LAST,
         p.DATE_ACKN_LAST,
         p.DATE_ADD                  AS "Date_Order_Created",
         p.DATE_BOOK_LAST,
@@ -198,6 +200,7 @@ ORD_LIN AS (
         -- Dates (line-level)
         l.DATE_RQST,
         l.DATE_PROM,
+        l.DATE_PICK_LAST,
         l.DATE_ACKN_LAST,
         l.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
         l.DATE_SHIP_LAST            AS LINE_DATE_SHIP_LAST,
@@ -210,6 +213,7 @@ ORD_LIN AS (
         l.RATIO_STK_PRICE,
 
         -- Flags
+        l.FLAG_PICK,
         l.FLAG_STK,
         l.FLAG_BO,
         l.FLAG_PRIOR_LINE_ORD,
@@ -269,6 +273,7 @@ ORD_LIN AS (
 
         p.DATE_RQST,
         p.DATE_PROM,
+        p.DATE_PICK_LAST,
         p.DATE_ACKN_LAST,
         p.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
         p.DATE_SHIP_LAST            AS LINE_DATE_SHIP_LAST,
@@ -279,6 +284,7 @@ ORD_LIN AS (
         p.CODE_UM_PRICE,
         p.RATIO_STK_PRICE,
 
+        p.FLAG_PICK,
         p.FLAG_STK,
         p.FLAG_BO,
         p.FLAG_PRIOR_LINE_ORD,
@@ -451,7 +457,7 @@ SELECT
     h.DATE_ORD as "Date_Ordered",
     h."Date_Order_Created",
     h.DATE_BOOK_LAST as "Date_Last_Booked",
-    --THIS IS CALCULATED and NEEDS TO BE 2 WEEKS FROM ORDER DATE CREATED - check the logic in the reports though to make sure there are no special nuances
+    h.DATE_PICK_LAST as "Date_Last_Picked",
     h.DATE_ACKN_LAST as	"Date_Acknowledged_Last",
 
     -- ── Dates (line-level) ────────────────────────────────
@@ -493,6 +499,7 @@ SELECT
     l.RATIO_STK_PRICE,
 
     -- ── Flags ─────────────────────────────────────────────
+    l.FLAG_PICK,
     l.FLAG_STK,
     l.FLAG_BO,
     l.FLAG_PRIOR_LINE_ORD,
