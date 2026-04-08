@@ -1,4 +1,5 @@
-CREATE OR REPLACE VIEW SILVER_DATA.TCM_SILVER.GOLD_OPEN_ORDERS_WITH_PRICES AS
+
+CREATE OR REPLACE VIEW GOLD_DATA.TCM_GOLD.OPEN_ORDERS_WITH_PRICES AS
 /*
 
 Gap list (not present in current master_* outputs) with OOwP_temp source lineage:
@@ -45,9 +46,9 @@ PRDSTR_FG AS (
 		ps.DATE_EFF_START,
 		ps.DATE_EFF_END
 	FROM BRONZE_DATA.TCM_BRONZE."PRDSTR_Bronze" ps
-	INNER JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib2
-		ON ps.ID_ITEM_COMP = ib2.ID_ITEM
-	WHERE ib2.CODE_COMM = 'FG'
+	INNER JOIN SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE mp2
+		ON ps.ID_ITEM_COMP = mp2."Item ID_Child SKU"
+	WHERE mp2."COMMODITY CODE" = 'FG'
 ),
 WORKING_DAYS AS (
 	SELECT
@@ -149,46 +150,43 @@ SBNB AS (
 /* ── WPS ──────────────────────────────────────────────────────────────────
    Shop orders in 'S' (Start) status.
    Drives Qty_Start and Qty_presew numerator.
-   Source: SHPORD_HDR_Bronze where STAT_REC_SO = 'S'
+   Source: MASTER_SHOPORDER_WC_TABLE where STAT_REC_SO = 'S'
    ─────────────────────────────────────────────────────────────────────── */
 WPS AS (
 	SELECT
 		ID_ITEM_PAR,
-		SUM(QTY_ONORD) AS SUM_QTY_ONORD
-	FROM BRONZE_DATA.TCM_BRONZE."SHPORD_HDR_Bronze"
+		SUM(QTY_REMAINING) AS SUM_QTY_ONORD
+	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
 	WHERE STAT_REC_SO = 'S'
 	GROUP BY ID_ITEM_PAR
 ),
 /* ── PCC ──────────────────────────────────────────────────────────────────
    Shop orders in 'S' status that have completed operation 3999 (pre-cut).
    Drives the "presew" portion of Qty_Start / Qty_presew.
-   Source: SHPORD_HDR_Bronze + SHPORD_OPER_Bronze (ID_OPER = 3999, STAT_REC_OPER = 'C')
+   Source: MASTER_SHOPORDER_WC_TABLE (ID_OPER = 3999, STAT_REC_OPER = 'C')
    ─────────────────────────────────────────────────────────────────────── */
 PCC AS (
 	SELECT
-		h.ID_ITEM_PAR,
-		h.STAT_REC_SO,
-		SUM(h.QTY_ONORD) AS SUM_QTY_ONORD
-	FROM BRONZE_DATA.TCM_BRONZE."SHPORD_HDR_Bronze" h
-	INNER JOIN BRONZE_DATA.TCM_BRONZE."SHPORD_OPER_Bronze" so
-		ON LTRIM(h.ID_SO) = LTRIM(so.ID_SO)
-		AND h.SUFX_SO = so.SUFX_SO
-		AND so.ID_OPER = 3999
-		AND so.STAT_REC_OPER = 'C'
-	WHERE h.STAT_REC_SO = 'S'
-	GROUP BY h.ID_ITEM_PAR, h.STAT_REC_SO
+		ID_ITEM_PAR,
+		MIN(STAT_REC_SO) AS STAT_REC_SO,
+		SUM(QTY_REMAINING) AS SUM_QTY_ONORD
+	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
+	WHERE STAT_REC_SO = 'S'
+		AND ID_OPER = 3999
+		AND STAT_REC_OPER = 'C'
+	GROUP BY ID_ITEM_PAR
 ),
 /* ── WPR_PND ──────────────────────────────────────────────────────────────
    Pending released shop orders (ID_ITEM_PAR ending in '#').
    Drives Qty_Rel_PND. Join key strips the trailing '#'.
-   Source: SHPORD_HDR_Bronze where STAT_REC_SO = 'R' and ID_ITEM_PAR like '%#'
+   Source: MASTER_SHOPORDER_WC_TABLE where STAT_REC_SO = 'R' and ID_ITEM_PAR like '%#'
    ─────────────────────────────────────────────────────────────────────── */
 WPR_PND AS (
 	SELECT
 		ID_ITEM_PAR,
 		REPLACE(ID_ITEM_PAR, '#', '') AS ID_ITEM_PAR_NP,
-		SUM(QTY_ONORD) AS SUM_QTY_ONORD
-	FROM BRONZE_DATA.TCM_BRONZE."SHPORD_HDR_Bronze"
+		SUM(QTY_REMAINING) AS SUM_QTY_ONORD
+	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
 	WHERE STAT_REC_SO = 'R'
 		AND ID_ITEM_PAR LIKE '%#'
 	GROUP BY ID_ITEM_PAR
@@ -196,19 +194,46 @@ WPR_PND AS (
 /* ── WPS_PND ──────────────────────────────────────────────────────────────
    Pending started shop orders (ID_ITEM_PAR ending in '#').
    Drives Qty_Start_PND. Join key strips the trailing '#'.
-   Source: SHPORD_HDR_Bronze where STAT_REC_SO = 'S' and ID_ITEM_PAR like '%#'
+   Source: MASTER_SHOPORDER_WC_TABLE where STAT_REC_SO = 'S' and ID_ITEM_PAR like '%#'
    ─────────────────────────────────────────────────────────────────────── */
 WPS_PND AS (
 	SELECT
 		ID_ITEM_PAR,
 		REPLACE(ID_ITEM_PAR, '#', '') AS ID_ITEM_PAR_NP,
-		SUM(QTY_ONORD) AS SUM_QTY_ONORD
-	FROM BRONZE_DATA.TCM_BRONZE."SHPORD_HDR_Bronze"
+		SUM(QTY_REMAINING) AS SUM_QTY_ONORD
+	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
 	WHERE STAT_REC_SO = 'S'
 		AND ID_ITEM_PAR LIKE '%#'
 	GROUP BY ID_ITEM_PAR
+),
+/* ── FLAG_CACHE ──────────────────────────────────────────────────────────
+   Pre-compute flag conversions to avoid redundant TO_VARCHAR calls.
+   ─────────────────────────────────────────────────────────────────────── */
+FLAG_CACHE AS (
+	SELECT
+		ID_ORD,
+		SEQ_LINE_ORD,
+		FLAG_PICK,
+		FLAG_ACKN,
+		TO_VARCHAR(FLAG_PICK) AS flag_pick_str,
+		TO_VARCHAR(FLAG_ACKN) AS flag_ackn_str
+	FROM SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE
+),
+/* ── QTY_STAGING ─────────────────────────────────────────────────────────
+   Pre-calculate presew qty once (shared between Qty_Start and Qty_presew).
+   ─────────────────────────────────────────────────────────────────────── */
+QTY_STAGING AS (
+	SELECT
+		wps.ID_ITEM_PAR,
+		COALESCE(wps.SUM_QTY_ONORD, 0) AS wps_qty,
+		COALESCE(
+			CASE WHEN pcc.STAT_REC_SO IS NULL THEN wps.SUM_QTY_ONORD ELSE pcc.SUM_QTY_ONORD END,
+			0
+		) AS presew_qty
+	FROM WPS wps
+	LEFT JOIN PCC pcc ON pcc.ID_ITEM_PAR = wps.ID_ITEM_PAR
 )
-SELECT DISTINCT
+SELECT
 	CURRENT_TIMESTAMP() AS dataRefreshTimeStamp,
 	o.OPEN_NET_AMT AS open_net_amt,
 	o.ID_CUST_SOLDTO,
@@ -221,15 +246,15 @@ SELECT DISTINCT
 	END AS ship_complete_flag,
 	o.DATE_PICK_LAST,
 	CASE
-		WHEN TO_VARCHAR(o.FLAG_PICK) = '2' THEN TO_VARCHAR(COALESCE(wd.WORKING_DAYS_SINCE_LAST_PICKED, 0))
+		WHEN fc.flag_pick_str = '2' THEN TO_VARCHAR(COALESCE(wd.WORKING_DAYS_SINCE_LAST_PICKED, 0))
 		ELSE ''
 	END AS "WorkingDaysSinceLastPicked",
 	CASE
-		WHEN TO_VARCHAR(o.FLAG_PICK) = '2' THEN 'P'
+		WHEN fc.flag_pick_str = '2' THEN 'P'
 		ELSE ''
 	END AS FLAG_PICK,
     CASE
-		WHEN TO_VARCHAR(o.FLAG_ACKN) = '2' THEN 'A'
+		WHEN fc.flag_ackn_str = '2' THEN 'A'
 		ELSE ''
 	END AS FLAG_ACKN,
 	o.AMT_ORD_TOTAL AS amt_ord_total,
@@ -299,21 +324,13 @@ SELECT DISTINCT
 	i."Item Status_Child Active Status" AS FLAG_STAT_ITEM,
 	o.FLAG_STK AS OL_FLAG_STK,
 	inv."Item_Stock_Flag" AS IL_FLAG_STK,
-	o.FLAG_STK,
 	i."Item_Work Center_Rubin" AS RBN_WC,
 	inv."Qty_Released" AS Qty_Rel,
 	-- Qty_Start: WPS qty not yet past pre-cut (operation 3999).
-	-- Logic: WPS - (PCC if matched, else WPS) = 0 when no PCC, WPS-PCC when PCC exists.
-	COALESCE(wps.SUM_QTY_ONORD, 0)
-		- COALESCE(
-			CASE WHEN pcc.STAT_REC_SO IS NULL THEN wps.SUM_QTY_ONORD ELSE pcc.SUM_QTY_ONORD END,
-			0
-		  ) AS Qty_Start,
+	-- Sourced from pre-calculated QTY_STAGING CTE.
+	qty_stg.wps_qty - qty_stg.presew_qty AS Qty_Start,
 	-- Qty_presew: qty in 'S' state that has completed operation 3999 (pre-cut done, awaiting sew).
-	COALESCE(
-		CASE WHEN pcc.STAT_REC_SO IS NULL THEN wps.SUM_QTY_ONORD ELSE pcc.SUM_QTY_ONORD END,
-		0
-	) AS Qty_presew,
+	qty_stg.presew_qty AS Qty_presew,
 	-- Qty_Rel_PND / Qty_Start_PND: pending shop orders whose ID_ITEM_PAR ends with '#'.
 	COALESCE(wpr_pnd.SUM_QTY_ONORD, 0) AS Qty_Rel_PND,
 	COALESCE(wps_pnd.SUM_QTY_ONORD, 0) AS Qty_Start_PND,
@@ -345,6 +362,7 @@ SELECT DISTINCT
 	1 AS COUNTER
 	-- o.ID_LOC
 FROM SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE o
+LEFT JOIN FLAG_CACHE fc ON o.ID_ORD = fc.ID_ORD AND o.SEQ_LINE_ORD = fc.SEQ_LINE_ORD
 LEFT JOIN SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE wc ON TRIM(o.ID_SO) = TRIM(wc."ShopOrder#") 
 -- AND o.SUFX_SO = wc.SUFX_SO
 LEFT JOIN SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER inv ON o.ID_ITEM = inv."Product_ID_SKU" 
@@ -381,10 +399,12 @@ LEFT JOIN SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER inv_comp
 /* ── SBNB: component-aware — use comp item when present, same ID_LOC as order ── */
 LEFT JOIN SBNB
 	ON SBNB.ID_ITEM = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
-	-- AND SBNB.ID_LOC = o.ID_LOC
+	AND SBNB.ID_LOC = o.ID_LOC
 /* ── Shop-order qty aggregates (component-aware: use comp item when present) ── */
 LEFT JOIN WPS
 	ON WPS.ID_ITEM_PAR = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
+LEFT JOIN QTY_STAGING qty_stg
+	ON qty_stg.ID_ITEM_PAR = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
 LEFT JOIN PCC
 	ON PCC.ID_ITEM_PAR = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
 LEFT JOIN WPR_PND

@@ -415,7 +415,7 @@ SELECT
         l.ID_ITEM,
         l.ID_ITEM_CUST,
         -- l.ID_CONFIG,
-        -- l.ID_LOC,
+        l.ID_LOC,
         -- l.LINE_ITEM_DESCRIPTION,
         -- l.CODE_CAT_PRDT,
         -- l.CODE_CAT_COST,
