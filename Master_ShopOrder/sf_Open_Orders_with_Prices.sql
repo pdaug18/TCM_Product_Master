@@ -276,17 +276,18 @@ SELECT
 		ELSE w10.result_date
 	END AS DATE_CALC_END,
     inv."Item_Planned_Classification",
-	o.ID_ITEM,
+	-- '"id_ord"', '"seq_line_ord"', '"id_item"',
+    o.ID_ITEM,
+	o.ID_ORD,
+	o.SEQ_LINE_ORD,
 	CASE
 		WHEN wc.ID_BUYER = 'AS' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'AS'
 		WHEN wc.ID_BUYER = '1A' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'AS'
 		WHEN wc.ID_BUYER = 'KT' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'KT'
 		ELSE ''
 	END AS alt_stk,
-	o.ID_ORD,
 	o.ID_USER_ADD,
 	o.DATE_ADD as "Date_Order_Created",
-	o.SEQ_LINE_ORD,
 	o.ID_SO AS id_so_odbc,
     inv."Location_ID",
 	o.ID_LOC,
