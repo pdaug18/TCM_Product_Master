@@ -43,7 +43,7 @@ WITH ORD_HDR AS (
         h.DATE_ORD,
         h.DATE_PICK_LAST,
         h.DATE_ACKN_LAST,
-        h.DATE_ADD                  AS "Date_Order_Created",
+        h.DATE_ADD,
         h.DATE_BOOK_LAST,
         h.DATE_SHIP_LAST            AS HDR_DATE_SHIP_LAST,
         h.DATE_INVC_LAST            AS HDR_DATE_INVC_LAST,
@@ -118,7 +118,7 @@ WITH ORD_HDR AS (
         p.DATE_ORD,
         p.DATE_PICK_LAST,
         p.DATE_ACKN_LAST,
-        p.DATE_ADD                  AS "Date_Order_Created",
+        p.DATE_ADD,
         p.DATE_BOOK_LAST,
         p.DATE_SHIP_LAST            AS HDR_DATE_SHIP_LAST,
         p.DATE_INVC_LAST            AS HDR_DATE_INVC_LAST,
@@ -217,6 +217,7 @@ ORD_LIN AS (
         l.FLAG_STK,
         l.FLAG_BO,
         l.FLAG_PRIOR_LINE_ORD,
+        l.FLAG_ACKN,
 
         -- Shop Order Linkage (FK to MASTER_SHOPORDER_TABLE)
         l.ID_LOC_SO,
@@ -288,6 +289,7 @@ ORD_LIN AS (
         p.FLAG_STK,
         p.FLAG_BO,
         p.FLAG_PRIOR_LINE_ORD,
+        p.FLAG_ACKN,
 
         p.ID_LOC_SO,
         p.ID_SO,
@@ -316,7 +318,8 @@ ORD_COMMENTS AS (
         c.DATE_EST_SHIP,
         c.DATE_OLD_SHIP,
         c.COMMENT                   AS ORD_COMMENT,
-        c.LATE_CODE                 --! LATE_CODE values are defined as follows (per business)? [ NULL->79587,  1->307, 2->272, 9->48, 6->43, 3->10, 4->6, 5->4 ]   LATE_ORDER_CODE table in TCM to get the description.
+        c.LATE_CODE,                 --! LATE_CODE values are defined as follows (per business)? [ NULL->79587,  1->307, 2->272, 9->48, 6->43, 3->10, 4->6, 5->4 ]   LATE_ORDER_CODE table in TCM to get the description.
+        c.FLAG_DEL,
     FROM (
         SELECT
             ID_ORD,
@@ -324,6 +327,7 @@ ORD_COMMENTS AS (
             DATE_OLD_SHIP,
             COMMENT,
             LATE_CODE,
+            FLAG_DEL,
             ROW_NUMBER() OVER (
                 PARTITION BY ID_ORD
                 ORDER BY "rowid" DESC NULLS LAST, "rowversion" DESC NULLS LAST
@@ -374,42 +378,42 @@ LINE_COMMENTS AS (
    ============================================================ */
 SELECT
     -- ── Order Key ─────────────────────────────────────────
-    l.ID_ORD as "Order ID",
-    l.SEQ_LINE_ORD as "Order_Sequence Line Number",
+        l.ID_ORD,
+        l.SEQ_LINE_ORD,
 
     -- -- ── Source Tables ─────────────────────────────────────
         -- h.HDR_SOURCE_TABLE,
         -- l.LIN_SOURCE_TABLE,
 
     -- ── Customer ──────────────────────────────────────────
-        h.ID_CUST_SOLDTO as "Customer_ID_Sold-To",
-        h.SEQ_SHIPTO as "Customer_End_User_Ship_To_Sequence_#",
+        h.ID_CUST_SOLDTO,
+        h.SEQ_SHIPTO,
         -- h.ID_CUST_BILLTO,
-        h.NAME_CUST as "Customer_Name_Sold-To",
-        h.NAME_CUST_SHIPTO as "Customer_Name_Ship-To",
-        h.ID_PO_CUST as "Customer_Customer Purchase_Order_ID",
+        h.NAME_CUST,
+        h.NAME_CUST_SHIPTO,
+        h.ID_PO_CUST,
 
     -- ── Order Classification ──────────────────────────────
-        h.TYPE_ORD_CP as "Order_Type",
-        h.CODE_STAT_ORD as "Order_Status_Code",
+        h.TYPE_ORD_CP,
+        h.CODE_STAT_ORD,
 
     -- ── Customer Type Codes ───────────────────────────────
-        h.CODE_CUST_1 as "Customer_Code_1",
-        h.CODE_CUST_2 as "Customer_Code_2",
-        h.CODE_CUST_3 as "Customer_Code_3",
+        h.CODE_CUST_1,
+        h.CODE_CUST_2,
+        h.CODE_CUST_3,
 
     -- ── Sales Rep ─────────────────────────────────────────
-        h.ID_SLSREP_1 as "ID_Sales_Rep 1",
-        h.ID_SLSREP_2 as "ID_Sales_Rep 2",
-        h.ID_SLSREP_3 as "ID_Sales_Rep 3",
+        h.ID_SLSREP_1,
+        h.ID_SLSREP_2,
+        h.ID_SLSREP_3,
         -- h.PCT_SPLIT_COMMSN_1,
         -- h.PCT_SPLIT_COMMSN_2,
         -- h.PCT_SPLIT_COMMSN_3,
         -- h.PCT_COMMSN,
 
     -- ── Item (line-level) ─────────────────────────────────
-        l.ID_ITEM as "Item ID_Child SKU",
-        l.ID_ITEM_CUST as "Item ID_Customer SKU",
+        l.ID_ITEM,
+        l.ID_ITEM_CUST,
         -- l.ID_CONFIG,
         -- l.ID_LOC,
         -- l.LINE_ITEM_DESCRIPTION,
@@ -433,7 +437,7 @@ SELECT
     l.PRICE_SELL_VP,
     l.PRICE_SELL_NET_VP,
     l.COST_UNIT_VP,
-    l.PRICE_NET as "Total_Price",
+    l.PRICE_NET,
 
     -- ── Pricing (decoded numeric) ─────────────────────────
     --   VP format: RIGHT(field, 10) gives mantissa; /10000 scales
@@ -454,15 +458,15 @@ SELECT
     l.AMT_COMMSN,
 
     -- ── Dates (header-level) ──────────────────────────────
-    h.DATE_ORD as "Date_Ordered",
-    h."Date_Order_Created",
-    h.DATE_BOOK_LAST as "Date_Last_Booked",
-    h.DATE_PICK_LAST as "Date_Last_Picked",
-    h.DATE_ACKN_LAST as	"Date_Acknowledged_Last",
+    h.DATE_ORD,
+    h.DATE_ADD,
+    h.DATE_BOOK_LAST,
+    h.DATE_PICK_LAST,
+    h.DATE_ACKN_LAST,
 
     -- ── Dates (line-level) ────────────────────────────────
-    l.DATE_RQST as "Date_Requested_By",
-    l.DATE_PROM as "Date_Promised",
+    l.DATE_RQST,
+    l.DATE_PROM,
     l.LINE_DATE_BOOK_LAST,
     l.LINE_DATE_SHIP_LAST,
     l.LINE_DATE_INVC_LAST,
@@ -503,6 +507,7 @@ SELECT
     l.FLAG_STK,
     l.FLAG_BO,
     l.FLAG_PRIOR_LINE_ORD,
+    l.FLAG_ACKN,
 
     -- ── Shop Order Linkage (FK → MASTER_SHOPORDER_TABLE) ──
     l.ID_LOC_SO,
@@ -525,6 +530,7 @@ SELECT
     c.DATE_OLD_SHIP,
     c.ORD_COMMENT,
     c.LATE_CODE,
+    c.FLAG_DEL,
 
     -- ── Line Comments (CP_COMMENT) ─────────────────────────
     lc.LINE_COMMENT_NOTE,

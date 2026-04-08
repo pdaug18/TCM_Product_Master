@@ -37,6 +37,7 @@ FinishedGoods AS (
             WHEN fg.descr_2 IS NOT NULL THEN CONCAT(fg.descr_1, ' || ', fg.descr_2)
             ELSE fg.descr_1
         END AS item_description,
+        il.BIN_PRIM,
         il.flag_source,
         il.flag_stk,
         il.flag_track_bin,
@@ -147,6 +148,7 @@ ItemSourceData AS (
         fg.QTY_ONHD,
         fg.QTY_ALLOC,
         fg.QTY_ONORD,
+        fg.BIN_PRIM,
         vs.primary_vendor_name,
         vs.primary_vendor_id,
         vs.secondary_vendor_name,
@@ -211,6 +213,7 @@ SELECT
     isd.QTY_ONHD,
     isd.QTY_ALLOC,
     isd.QTY_ONORD,
+    isd.BIN_PRIM,
     isd.flag_stk,
     isd.flag_track_bin,
     isd.flag_cntrl,
@@ -247,6 +250,7 @@ SELECT
     fd.QTY_ONHD                 AS "Qty_On_Hand",
     fd.QTY_ALLOC                AS "Qty_Allocated",
     fd.QTY_ONORD                AS "Qty_On_Order",
+    fd.BIN_PRIM                AS  "Primary_Bin",
     fd.flag_stk                 AS "Item_Stock_Flag",
     fd.flag_track_bin           AS "Item_Bin_Tracking",
     fd.flag_cntrl               AS "Item_Controlled_Noncontrolled_Flag",
