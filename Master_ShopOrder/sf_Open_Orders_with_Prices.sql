@@ -24,6 +24,7 @@ Notes:
 - The remaining fields above are intentionally excluded from this draft.
 - This view uses only SILVER master tables and available/derivable attributes.
 */
+-- SHIP_LINE: line-grain shipment rollup used for latest ship/carrier and shipped qty offsets.
 WITH SHIP_LINE AS (
 	SELECT
 		ID_ORD,
@@ -36,6 +37,7 @@ WITH SHIP_LINE AS (
 		ID_ORD,
 		SEQ_LINE_ORD
 ),
+-- SHIP_ORD: order-grain shipment/invoice counters used for fulfillment visibility columns.
 SHIP_ORD AS (
 	SELECT
 		ID_ORD,
@@ -44,6 +46,7 @@ SHIP_ORD AS (
 	FROM SILVER_DATA.TCM_SILVER.MASTER_SHIPMENT_TABLE
 	GROUP BY ID_ORD
 ),
+-- WORKING_DAYS: computes business-day age since last pick for currently pick-flagged lines.
 WORKING_DAYS AS (
     SELECT
         o.ID_ORD,
@@ -61,6 +64,7 @@ WORKING_DAYS AS (
         o.ID_ORD,
         o.SEQ_LINE_ORD
 ),
+-- WORKDAY_3_AFTER_ORD: helper calendar lookup for 3rd business day after order date.
 WORKDAY_3_AFTER_ORD AS (
 	SELECT
 		base_date,
@@ -79,6 +83,7 @@ WORKDAY_3_AFTER_ORD AS (
 	WHERE rn = 3
 	GROUP BY base_date
 ),
+-- WORKDAY_1_AFTER_ADD: helper calendar lookup for 1st business day after line add date.
 WORKDAY_1_AFTER_ADD AS (
 	SELECT
 		base_date,
@@ -97,6 +102,7 @@ WORKDAY_1_AFTER_ADD AS (
 	WHERE rn = 1
 	GROUP BY base_date
 ),
+-- WORKDAY_10_AFTER_PROM: helper calendar lookup for 10th business day after promise date.
 WORKDAY_10_AFTER_PROM AS (
 	SELECT
 		base_date,
@@ -115,6 +121,7 @@ WORKDAY_10_AFTER_PROM AS (
 	WHERE rn = 10
 	GROUP BY base_date
 ),
+-- SBNB: unconfirmed shipped quantity by item/location (used to adjust available inventory views).
 SBNB AS (
 	SELECT
 		ID_ITEM,
@@ -124,6 +131,7 @@ SBNB AS (
 	WHERE COALESCE(FLAG_CONFIRM_SHIP, 0) <> 1
 	GROUP BY ID_ITEM, ID_LOC
 ),
+-- SHOPORDER_HDR: de-duplicates shop-order WC data down to header-like rows to avoid operation double counting.
 SHOPORDER_HDR AS (
 	SELECT DISTINCT
 		SHOP_ORDER_LOCATION,
@@ -134,6 +142,7 @@ SHOPORDER_HDR AS (
 		QTY_REMAINING
 	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
 ),
+-- PCC_ORDERS: identifies shop orders with completed operation 3999 for presew logic.
 PCC_ORDERS AS (
 	SELECT DISTINCT
 		SHOP_ORDER_LOCATION,
@@ -143,6 +152,7 @@ PCC_ORDERS AS (
 	WHERE ID_OPER = 3999
 		AND STAT_REC_OPER = 'C'
 ),
+-- WPR: released shop-order qty by parent item/location, used for Qty_Rel.
 WPR AS (
 	SELECT
 		ID_ITEM_PAR,
@@ -152,6 +162,7 @@ WPR AS (
 	WHERE STAT_REC_SO = 'R'
 	GROUP BY ID_ITEM_PAR, SHOP_ORDER_LOCATION
 ),
+-- WPS: started shop-order qty by parent item/location, base for Qty_Start and Qty_presew.
 WPS AS (
 	SELECT
 		ID_ITEM_PAR,
@@ -161,6 +172,7 @@ WPS AS (
 	WHERE STAT_REC_SO = 'S'
 	GROUP BY ID_ITEM_PAR, SHOP_ORDER_LOCATION
 ),
+-- PCC: subset of WPS where operation 3999 is complete; feeds presew split.
 PCC AS (
 	SELECT
 		h.ID_ITEM_PAR,
@@ -175,6 +187,7 @@ PCC AS (
 	WHERE h.STAT_REC_SO = 'S'
 	GROUP BY h.ID_ITEM_PAR, h.SHOP_ORDER_LOCATION
 ),
+-- WPR_PND: pending released qty (# items) by parent item/location for Qty_Rel_PND.
 WPR_PND AS (
 	SELECT
 		ID_ITEM_PAR,
@@ -186,6 +199,7 @@ WPR_PND AS (
 		AND ID_ITEM_PAR LIKE '%#'
 	GROUP BY ID_ITEM_PAR, SHOP_ORDER_LOCATION
 ),
+-- WPS_PND: pending started qty (# items) by parent item/location for Qty_Start_PND.
 WPS_PND AS (
 	SELECT
 		ID_ITEM_PAR,
@@ -197,6 +211,7 @@ WPS_PND AS (
 		AND ID_ITEM_PAR LIKE '%#'
 	GROUP BY ID_ITEM_PAR, SHOP_ORDER_LOCATION
 ),
+-- QTY_STAGING: centralizes shared WPS/PCC math so Qty_Start and Qty_presew stay consistent.
 QTY_STAGING AS (
 	SELECT
 		wps.ID_ITEM_PAR,
@@ -235,10 +250,11 @@ SELECT
 	END AS FLAG_ACKN,
 	o.AMT_ORD_TOTAL AS amt_ord_total,
 	o.ID_SLSREP_1,
+	sl.ID_CARRIER,
 	o.DESCR_SHIP_VIA,
-	o.DATE_RQST,
-	o.DATE_PROM,
-	o.DATE_ORD,
+	o.DATE_RQST as DR,
+	o.DATE_PROM as DP,
+	o.DATE_ORD as DO,
 	CASE
 		WHEN o.DATE_RQST = o.DATE_PROM
 			THEN o.DATE_RQST
@@ -259,17 +275,25 @@ SELECT
 			THEN o.DATE_PROM
 		ELSE w10.result_date
 	END AS DATE_CALC_END,
+    inv."Item_Planned_Classification",
+	o.ID_ITEM,
 	CASE
 		WHEN wc.ID_BUYER = 'AS' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'AS'
 		WHEN wc.ID_BUYER = '1A' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'AS'
 		WHEN wc.ID_BUYER = 'KT' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'KT'
 		ELSE ''
 	END AS alt_stk,
+	o.ID_ORD,
+	o.ID_USER_ADD,
+	o.DATE_ADD as "Date_Order_Created",
+	o.SEQ_LINE_ORD,
+	o.ID_SO AS id_so_odbc,
+    inv."Location_ID",
+	o.ID_LOC,
 	CASE
 		WHEN o.ORD_COMMENT ILIKE '%#MO%' THEN 'Y'
 		ELSE 'N'
 	END AS FLAG_MO,
-	o.ID_ITEM,
 	CASE
 		WHEN i."COMMODITY CODE" LIKE 'RM%'
 			OR i."COMMODITY CODE" = 'FAB'
@@ -280,34 +304,21 @@ SELECT
 			THEN '1-STOCK'
 		ELSE '2-MTO'
 	END AS STOCK_STATUS,
-	o.ID_ORD,
-	o.ID_USER_ADD,
-	o.DATE_ADD as "Date_Order_Created",
-	o.SEQ_LINE_ORD,
-	o.ID_SO AS id_so_odbc,
 	i."Item_Vertical",
 	i."CODE_USER_1",
-	wc.ID_REV_DRAW,
-	sl.ID_CARRIER,
 	(o.QTY_OPEN - COALESCE(sl.QTY_SHIP, 0)) AS QTY_OPEN,
-	i."Item Status_Child Active Status" AS FLAG_STAT_ITEM,
+    i."Item Status_Child Active Status" AS FLAG_STAT_ITEM,
 	o.FLAG_STK AS OL_FLAG_STK,
 	inv."Item_Stock_Flag" AS IL_FLAG_STK,
-	i."Item_Work Center_Rubin" AS RBN_WC,
 	COALESCE(wpr.SUM_QTY_ONORD, 0) AS Qty_Rel,
 	COALESCE(qty_stg.wps_qty, 0) - COALESCE(qty_stg.presew_qty, 0) AS Qty_Start,
 	COALESCE(qty_stg.presew_qty, 0) AS Qty_presew,
 	COALESCE(wpr_pnd.SUM_QTY_ONORD, 0) AS Qty_Rel_PND,
 	COALESCE(wps_pnd.SUM_QTY_ONORD, 0) AS Qty_Start_PND,
 	COALESCE(sbnb.SBNB, 0) AS SBNB,
-	(COALESCE(inv."Qty_On_Hand", 0) - COALESCE(sbnb.SBNB, 0)) AS QTY_ONHD,
-	(COALESCE(inv."Qty_Allocated", 0) - COALESCE(sbnb.SBNB, 0)) AS QTY_ALLOC,
-	COALESCE(inv."Qty_On_Order", 0) AS QTY_ONORD,
 	inv."Primary_Bin" AS BIN_PRIM,
-	inv."Item_Source_Flag" AS FLAG_SOURCE,
-	inv."Item_Bin_Tracking" AS FLAG_TRACK_BIN,
 	inv."Item_Inventory_Reorder_Point" AS LEVEL_ROP,
-	CASE
+    CASE
 		WHEN COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1
 			 AND COALESCE(inv."Item_Stock_Flag", o.FLAG_STK) = 'S'
 			THEN 1
@@ -320,11 +331,17 @@ SELECT
 	o.QTY_SHIP_TOTAL,
 	sl.ID_SHIP,
 	o.CODE_STAT_ORD,
+	(COALESCE(inv."Qty_On_Hand", 0) - COALESCE(sbnb.SBNB, 0)) AS QTY_ONHD,
+	(COALESCE(inv."Qty_Allocated", 0) - COALESCE(sbnb.SBNB, 0)) AS QTY_ALLOC,
+	COALESCE(inv."Qty_On_Order", 0) AS QTY_ONORD,
+	inv."Item_Source_Flag" AS FLAG_SOURCE,
+	inv."Item_Bin_Tracking" AS FLAG_TRACK_BIN,
 	o.ID_PO_CUST,
 	so.NUM_SHIPMENTS,
 	so.NUM_INVCS,
 	1 AS COUNTER,
-	o.ID_LOC
+	wc.ID_REV_DRAW,
+	i."Item_Work Center_Rubin" AS RBN_WC
 FROM SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE o
 LEFT JOIN SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE wc ON TRIM(o.ID_SO) = TRIM(wc."ShopOrder#")
 LEFT JOIN SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER inv ON o.ID_ITEM = inv."Product_ID_SKU" AND o.ID_LOC = inv."Location_ID"
