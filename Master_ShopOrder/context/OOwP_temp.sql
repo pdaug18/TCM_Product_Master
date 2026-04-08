@@ -206,7 +206,9 @@ LEFT JOIN
 	and il.ID_LOC = ir.ID_LOC_HOME
 LEFT JOIN 
 
-	(select ID_ITEM, ID_LOC, sum(QTY_SHIP) as SBNB from nsa.CP_SHPLIN WITH (NOLOCK) where FLAG_CONFIRM_SHIP <> 1 group by ID_ITEM, ID_LOC) as tSBNB
+	(select ID_ITEM, ID_LOC, sum(QTY_SHIP) as SBNB 
+	from nsa.CP_SHPLIN WITH (NOLOCK) where FLAG_CONFIRM_SHIP <> 1 
+	group by ID_ITEM, ID_LOC) as tSBNB
 	on ol.ID_LOC = tSBNB.ID_LOC
 	and ol.id_item = --tSBNB.id_item
 	CASE
