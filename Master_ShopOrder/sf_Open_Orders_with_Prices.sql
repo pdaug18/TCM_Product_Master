@@ -25,7 +25,8 @@ WITH SHIP_LINE AS (
 		ID_ORD,
 		SEQ_LINE_ORD,
 		MAX(ID_SHIP) AS ID_SHIP,
-		MAX(ID_CARRIER) AS ID_CARRIER
+		MAX(ID_CARRIER) AS ID_CARRIER,
+		SUM(QTY_SHIP) AS QTY_SHIP
 	FROM SILVER_DATA.TCM_SILVER.MASTER_SHIPMENT_TABLE
 	GROUP BY
 		ID_ORD,
@@ -147,6 +148,46 @@ SBNB AS (
 	WHERE COALESCE(FLAG_CONFIRM_SHIP, 0) <> 1
 	GROUP BY ID_ITEM, ID_LOC
 ),
+/* ── SHOPORDER_HDR ───────────────────────────────────────────────────────
+   Header-grain projection from MASTER_SHOPORDER_WC_TABLE.
+   Prevents double counting QTY_REMAINING across operation rows.
+   ─────────────────────────────────────────────────────────────────────── */
+SHOPORDER_HDR AS (
+	SELECT DISTINCT
+		SHOP_ORDER_LOCATION,
+		"ShopOrder#",
+		SUFX_SO,
+		ID_ITEM_PAR,
+		STAT_REC_SO,
+		QTY_REMAINING
+	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
+),
+/* ── PCC_ORDERS ──────────────────────────────────────────────────────────
+   Shop orders with completed operation 3999.
+   ─────────────────────────────────────────────────────────────────────── */
+PCC_ORDERS AS (
+	SELECT DISTINCT
+		SHOP_ORDER_LOCATION,
+		"ShopOrder#",
+		SUFX_SO
+	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
+	WHERE ID_OPER = 3999
+		AND STAT_REC_OPER = 'C'
+),
+/* ── WPR ──────────────────────────────────────────────────────────────────
+   Shop orders in 'R' (Released) status.
+   Drives Qty_Rel.
+   Source: MASTER_SHOPORDER_WC_TABLE where STAT_REC_SO = 'R'
+   ─────────────────────────────────────────────────────────────────────── */
+WPR AS (
+	SELECT
+		ID_ITEM_PAR,
+		SHOP_ORDER_LOCATION,
+		SUM(QTY_REMAINING) AS SUM_QTY_ONORD
+	FROM SHOPORDER_HDR
+	WHERE STAT_REC_SO = 'R'
+	GROUP BY ID_ITEM_PAR, SHOP_ORDER_LOCATION
+),
 /* ── WPS ──────────────────────────────────────────────────────────────────
    Shop orders in 'S' (Start) status.
    Drives Qty_Start and Qty_presew numerator.
@@ -155,10 +196,11 @@ SBNB AS (
 WPS AS (
 	SELECT
 		ID_ITEM_PAR,
+		SHOP_ORDER_LOCATION,
 		SUM(QTY_REMAINING) AS SUM_QTY_ONORD
-	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
+	FROM SHOPORDER_HDR
 	WHERE STAT_REC_SO = 'S'
-	GROUP BY ID_ITEM_PAR
+	GROUP BY ID_ITEM_PAR, SHOP_ORDER_LOCATION
 ),
 /* ── PCC ──────────────────────────────────────────────────────────────────
    Shop orders in 'S' status that have completed operation 3999 (pre-cut).
@@ -167,14 +209,17 @@ WPS AS (
    ─────────────────────────────────────────────────────────────────────── */
 PCC AS (
 	SELECT
-		ID_ITEM_PAR,
-		MIN(STAT_REC_SO) AS STAT_REC_SO,
-		SUM(QTY_REMAINING) AS SUM_QTY_ONORD
-	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
-	WHERE STAT_REC_SO = 'S'
-		AND ID_OPER = 3999
-		AND STAT_REC_OPER = 'C'
-	GROUP BY ID_ITEM_PAR
+		h.ID_ITEM_PAR,
+		h.SHOP_ORDER_LOCATION,
+		MIN(h.STAT_REC_SO) AS STAT_REC_SO,
+		SUM(h.QTY_REMAINING) AS SUM_QTY_ONORD
+	FROM SHOPORDER_HDR h
+	INNER JOIN PCC_ORDERS p
+		ON h.SHOP_ORDER_LOCATION = p.SHOP_ORDER_LOCATION
+		AND h."ShopOrder#" = p."ShopOrder#"
+		AND h.SUFX_SO = p.SUFX_SO
+	WHERE h.STAT_REC_SO = 'S'
+	GROUP BY h.ID_ITEM_PAR, h.SHOP_ORDER_LOCATION
 ),
 /* ── WPR_PND ──────────────────────────────────────────────────────────────
    Pending released shop orders (ID_ITEM_PAR ending in '#').
@@ -184,12 +229,13 @@ PCC AS (
 WPR_PND AS (
 	SELECT
 		ID_ITEM_PAR,
+		SHOP_ORDER_LOCATION,
 		REPLACE(ID_ITEM_PAR, '#', '') AS ID_ITEM_PAR_NP,
 		SUM(QTY_REMAINING) AS SUM_QTY_ONORD
-	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
+	FROM SHOPORDER_HDR
 	WHERE STAT_REC_SO = 'R'
 		AND ID_ITEM_PAR LIKE '%#'
-	GROUP BY ID_ITEM_PAR
+	GROUP BY ID_ITEM_PAR, SHOP_ORDER_LOCATION
 ),
 /* ── WPS_PND ──────────────────────────────────────────────────────────────
    Pending started shop orders (ID_ITEM_PAR ending in '#').
@@ -199,12 +245,13 @@ WPR_PND AS (
 WPS_PND AS (
 	SELECT
 		ID_ITEM_PAR,
+		SHOP_ORDER_LOCATION,
 		REPLACE(ID_ITEM_PAR, '#', '') AS ID_ITEM_PAR_NP,
 		SUM(QTY_REMAINING) AS SUM_QTY_ONORD
-	FROM SILVER_DATA.TCM_SILVER.MASTER_SHOPORDER_WC_TABLE
+	FROM SHOPORDER_HDR
 	WHERE STAT_REC_SO = 'S'
 		AND ID_ITEM_PAR LIKE '%#'
-	GROUP BY ID_ITEM_PAR
+	GROUP BY ID_ITEM_PAR, SHOP_ORDER_LOCATION
 ),
 /* ── FLAG_CACHE ──────────────────────────────────────────────────────────
    Pre-compute flag conversions to avoid redundant TO_VARCHAR calls.
@@ -225,13 +272,16 @@ FLAG_CACHE AS (
 QTY_STAGING AS (
 	SELECT
 		wps.ID_ITEM_PAR,
+		wps.SHOP_ORDER_LOCATION,
 		COALESCE(wps.SUM_QTY_ONORD, 0) AS wps_qty,
 		COALESCE(
 			CASE WHEN pcc.STAT_REC_SO IS NULL THEN wps.SUM_QTY_ONORD ELSE pcc.SUM_QTY_ONORD END,
 			0
 		) AS presew_qty
 	FROM WPS wps
-	LEFT JOIN PCC pcc ON pcc.ID_ITEM_PAR = wps.ID_ITEM_PAR
+	LEFT JOIN PCC pcc
+		ON pcc.ID_ITEM_PAR = wps.ID_ITEM_PAR
+		AND pcc.SHOP_ORDER_LOCATION = wps.SHOP_ORDER_LOCATION
 )
 SELECT
 	CURRENT_TIMESTAMP() AS dataRefreshTimeStamp,
@@ -290,9 +340,9 @@ SELECT
 		ELSE w10.result_date
 	END AS DATE_CALC_END,
 	CASE
-		WHEN wc.ID_BUYER = 'AS' AND inv."Qty_On_Hand" IS NOT NULL AND inv."Item_Inventory_Reorder_Point" > 1 THEN 'AS'
-		WHEN wc.ID_BUYER = '1A' AND inv."Qty_On_Hand" IS NOT NULL AND inv."Item_Inventory_Reorder_Point" > 1 THEN 'AS'
-		WHEN wc.ID_BUYER = 'KT' AND inv."Qty_On_Hand" IS NOT NULL AND inv."Item_Inventory_Reorder_Point" > 1 THEN 'KT'
+		WHEN wc.ID_BUYER = 'AS' AND COALESCE(inv_comp."Qty_On_Hand", inv."Qty_On_Hand") IS NOT NULL AND COALESCE(inv_comp."Item_Inventory_Reorder_Point", inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'AS'
+		WHEN wc.ID_BUYER = '1A' AND COALESCE(inv_comp."Qty_On_Hand", inv."Qty_On_Hand") IS NOT NULL AND COALESCE(inv_comp."Item_Inventory_Reorder_Point", inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'AS'
+		WHEN wc.ID_BUYER = 'KT' AND COALESCE(inv_comp."Qty_On_Hand", inv."Qty_On_Hand") IS NOT NULL AND COALESCE(inv_comp."Item_Inventory_Reorder_Point", inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'KT'
 		ELSE ''
 	END AS alt_stk,
 	CASE
@@ -302,11 +352,12 @@ SELECT
 	o.ID_ITEM,
 	ps.ID_ITEM_COMP,
 	CASE
-		-- Component-aware stock check for FG-style parent items.
-		WHEN i."COMMODITY CODE" = 'FG'
-			 AND COALESCE(inv_comp."Item_Stock_Flag", inv."Item_Stock_Flag", o.FLAG_STK) = 'S'
+		WHEN i."COMMODITY CODE" LIKE 'RM%'
+			OR i."COMMODITY CODE" = 'FAB'
+			OR i."COMMODITY CODE" LIKE 'DF%'
 			THEN '3-FABRIC'
-		WHEN COALESCE(inv."Item_Stock_Flag", o.FLAG_STK) = 'S'
+		WHEN COALESCE(inv_comp."Item_Stock_Flag", inv."Item_Stock_Flag", o.FLAG_STK) = 'S'
+			 AND COALESCE(inv_comp."Item_Inventory_Reorder_Point", inv."Item_Inventory_Reorder_Point", 0) > 1
 			THEN '1-STOCK'
 		ELSE '2-MTO'
 	END AS STOCK_STATUS,
@@ -320,29 +371,29 @@ SELECT
 	i."CODE_USER_1",
 	wc.ID_REV_DRAW,
 	sl.ID_CARRIER,
-	o.QTY_OPEN,
+	(o.QTY_OPEN - COALESCE(sl.QTY_SHIP, 0)) AS QTY_OPEN,
 	i."Item Status_Child Active Status" AS FLAG_STAT_ITEM,
 	o.FLAG_STK AS OL_FLAG_STK,
-	inv."Item_Stock_Flag" AS IL_FLAG_STK,
+	COALESCE(inv_comp."Item_Stock_Flag", inv."Item_Stock_Flag") AS IL_FLAG_STK,
 	i."Item_Work Center_Rubin" AS RBN_WC,
-	inv."Qty_Released" AS Qty_Rel,
+	COALESCE(wpr.SUM_QTY_ONORD, 0) AS Qty_Rel,
 	-- Qty_Start: WPS qty not yet past pre-cut (operation 3999).
 	-- Sourced from pre-calculated QTY_STAGING CTE.
-	qty_stg.wps_qty - qty_stg.presew_qty AS Qty_Start,
+	COALESCE(qty_stg.wps_qty, 0) - COALESCE(qty_stg.presew_qty, 0) AS Qty_Start,
 	-- Qty_presew: qty in 'S' state that has completed operation 3999 (pre-cut done, awaiting sew).
-	qty_stg.presew_qty AS Qty_presew,
+	COALESCE(qty_stg.presew_qty, 0) AS Qty_presew,
 	-- Qty_Rel_PND / Qty_Start_PND: pending shop orders whose ID_ITEM_PAR ends with '#'.
 	COALESCE(wpr_pnd.SUM_QTY_ONORD, 0) AS Qty_Rel_PND,
 	COALESCE(wps_pnd.SUM_QTY_ONORD, 0) AS Qty_Start_PND,
 	-- SBNB: unconfirmed shipped qty (component-aware: use comp item + order loc when present).
 	COALESCE(sbnb.SBNB, 0) AS SBNB,
-	inv."Qty_On_Hand" AS QTY_ONHD,
-	inv."Qty_Allocated" AS QTY_ALLOC,
-	inv."Qty_On_Order" AS QTY_ONORD,
+	(COALESCE(inv_comp."Qty_On_Hand", inv."Qty_On_Hand", 0) - COALESCE(sbnb.SBNB, 0)) AS QTY_ONHD,
+	(COALESCE(inv_comp."Qty_Allocated", inv."Qty_Allocated", 0) - COALESCE(sbnb.SBNB, 0)) AS QTY_ALLOC,
+	COALESCE(inv_comp."Qty_On_Order", inv."Qty_On_Order", 0) AS QTY_ONORD,
 	COALESCE(inv_comp."Primary_Bin", inv."Primary_Bin") AS BIN_PRIM,
-	inv."Item_Source_Flag" AS FLAG_SOURCE,
-	inv."Item_Bin_Tracking" AS FLAG_TRACK_BIN,
-	inv."Item_Inventory_Reorder_Point" AS LEVEL_ROP,
+	COALESCE(inv_comp."Item_Source_Flag", inv."Item_Source_Flag") AS FLAG_SOURCE,
+	COALESCE(inv_comp."Item_Bin_Tracking", inv."Item_Bin_Tracking") AS FLAG_TRACK_BIN,
+	COALESCE(inv_comp."Item_Inventory_Reorder_Point", inv."Item_Inventory_Reorder_Point") AS LEVEL_ROP,
 	CASE
 		WHEN COALESCE(inv_comp."Item_Inventory_Reorder_Point", inv."Item_Inventory_Reorder_Point", 0) > 1
 			 AND COALESCE(inv_comp."Item_Stock_Flag", inv."Item_Stock_Flag", o.FLAG_STK) = 'S'
@@ -400,13 +451,15 @@ LEFT JOIN SBNB
 	ON SBNB.ID_ITEM = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
 	AND SBNB.ID_LOC = o.ID_LOC
 /* ── Shop-order qty aggregates (component-aware: use comp item when present) ── */
-LEFT JOIN WPS
-	ON WPS.ID_ITEM_PAR = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
+LEFT JOIN WPR
+	ON WPR.ID_ITEM_PAR = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
+	AND WPR.SHOP_ORDER_LOCATION = o.ID_LOC
 LEFT JOIN QTY_STAGING qty_stg
 	ON qty_stg.ID_ITEM_PAR = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
-LEFT JOIN PCC
-	ON PCC.ID_ITEM_PAR = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
+	AND qty_stg.SHOP_ORDER_LOCATION = o.ID_LOC
 LEFT JOIN WPR_PND
 	ON WPR_PND.ID_ITEM_PAR_NP = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
+	AND WPR_PND.SHOP_ORDER_LOCATION = o.ID_LOC
 LEFT JOIN WPS_PND
-	ON WPS_PND.ID_ITEM_PAR_NP = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM);
+	ON WPS_PND.ID_ITEM_PAR_NP = COALESCE(ps.ID_ITEM_COMP, o.ID_ITEM)
+	AND WPS_PND.SHOP_ORDER_LOCATION = o.ID_LOC;
