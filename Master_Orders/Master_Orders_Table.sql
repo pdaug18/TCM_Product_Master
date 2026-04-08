@@ -550,3 +550,47 @@ LEFT JOIN ORD_COMMENTS c
 LEFT JOIN LINE_COMMENTS lc
     ON l.ID_ORD = lc.ID_ORD
     AND l.SEQ_LINE_ORD = lc.SEQ_LINE_ORD
+
+/* ============================================================
+   Dedupe Guard — enforce one row per business key
+   Business key: (ID_ITEM, ID_ORD, SEQ_LINE_ORD)
+   Priority: ACTIVE line/header over PERM, then open qty/date recency
+   ============================================================ */
+QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY l.ID_ITEM, l.ID_ORD, l.SEQ_LINE_ORD
+    ORDER BY
+        CASE WHEN l.LIN_SOURCE_TABLE = 'ACTIVE' THEN 0 ELSE 1 END,
+        CASE WHEN h.HDR_SOURCE_TABLE = 'ACTIVE' THEN 0 ELSE 1 END,
+        CASE WHEN l.QTY_OPEN > 0 THEN 0 ELSE 1 END,
+        COALESCE(l.DATE_REL, l.DATE_PROM, h.DATE_ORD, TO_DATE('1900-01-01')) DESC,
+        COALESCE(l.ID_LOC, '') ASC,
+        COALESCE(l.ID_SO, '') ASC,
+        COALESCE(l.SUFX_SO, 0) ASC
+) = 1
+
+
+/* Overlap business keys between active and perm tables (should be zero if source data is clean)
+WITH lin_src AS (
+    SELECT ID_ITEM, ID_ORD, SEQ_LINE_ORD, ID_LOC, 'ACTIVE' AS src
+    FROM BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_Bronze"
+    UNION ALL
+    SELECT ID_ITEM, ID_ORD, SEQ_LINE_ORD, ID_LOC, 'PERM' AS src
+    FROM BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_PERM_Bronze"
+),
+k AS (
+    SELECT
+        ID_ITEM, ID_ORD, SEQ_LINE_ORD,
+        COUNT(*) AS rows_per_key,
+        COUNT_IF(src = 'ACTIVE') AS active_rows,
+        COUNT_IF(src = 'PERM') AS perm_rows
+    FROM lin_src
+    GROUP BY ID_ITEM, ID_ORD, SEQ_LINE_ORD
+)
+SELECT
+    COUNT(*) AS duplicate_keys_total,
+    COUNT_IF(active_rows > 0 AND perm_rows > 0) AS keys_in_both_active_and_perm,
+    COUNT_IF(active_rows > 1 AND perm_rows = 0) AS keys_duplicated_within_active,
+    COUNT_IF(perm_rows > 1 AND active_rows = 0) AS keys_duplicated_within_perm
+FROM k
+WHERE rows_per_key > 1;
+*/
