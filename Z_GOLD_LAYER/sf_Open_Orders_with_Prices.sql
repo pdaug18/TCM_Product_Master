@@ -295,10 +295,10 @@ SELECT
     CASE
 		WHEN TO_VARCHAR(o."Order_Acknowledgement_Flag") = '2' THEN 'A'
 		ELSE ''
-	END AS FLAG_ACKN,
+	END AS "Order_Acknowledgement_Flag",
 	o."Order_Amount_Total",
 	o."ID_Sales_Rep_1",
-	sl.ID_CARRIER,
+	sl.ID_CARRIER as "Carrier_ID",
 	o."Shipping_Method_Description",
 	o."Date_Line_Requested",
 	o."Date_Line_Promised",
@@ -333,12 +333,12 @@ SELECT
 		WHEN wc.ID_BUYER = '1A' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'AS'
 		WHEN wc.ID_BUYER = 'KT' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'KT'
 		ELSE ''
-	END AS alt_stk,
+	END AS "Item_Altered_Stock_Flag",
 	o."Employee_ID_User_Add",
 	o."Date_Order_Created",
-	o.ID_SO AS id_so_odbc,
-    inv."Location_ID",
-	o."Item Location" AS ID_LOC,
+	o.ID_SO AS "ID_so_odbc",
+    inv."Inv_Location_ID",
+	o."Item Location" AS "Order_Item_Location",
 	CASE
 		WHEN o."Order_Comment_Production" ILIKE '%#MO%' THEN 'Y'
 		ELSE 'N'
@@ -376,9 +376,9 @@ SELECT
 	i."Unit_of_Measure_Price",
 	o."Customer_Name",
 	wc.STAT_REC_SO,
-	wc."ShopOrder#",
+	wc."ShopOrder#" as "Shop_Order_ID",
 	o."Total Shipped Quantity",
-	sl.ID_SHIP,
+	sl.ID_SHIP as "Shipment_ID",
 	o."Order_Status_Code",
 	(COALESCE(inv."Qty_On_Hand", 0) - COALESCE(sbnb.SBNB, 0)) AS QTY_ONHD,
 	(COALESCE(inv."Qty_Allocated", 0) - COALESCE(sbnb.SBNB, 0)) AS QTY_ALLOC,
