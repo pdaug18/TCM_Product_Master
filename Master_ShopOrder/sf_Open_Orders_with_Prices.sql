@@ -31,12 +31,12 @@ WITH ORDERS_BASE AS (
 		SELECT
 			o.*,
 			ROW_NUMBER() OVER (
-				PARTITION BY o.ID_ITEM, o.ID_ORD, o.SEQ_LINE_ORD
+				PARTITION BY o."Item ID_Child SKU", o."Order ID", o."Order_Sequence Line Number"
 				ORDER BY
-					CASE WHEN o.CODE_STAT_ORD IN ('O', 'B', 'S', 'P', 'R', 'A') THEN 0 ELSE 1 END,
-					CASE WHEN o.QTY_OPEN > 0 THEN 0 ELSE 1 END,
-					COALESCE(o.DATE_ADD, TO_DATE('1900-01-01')) DESC,
-					COALESCE(o.DATE_ORD, TO_DATE('1900-01-01')) DESC
+					CASE WHEN o."Order_Status_Code" IN ('O', 'B', 'S', 'P', 'R', 'A') THEN 0 ELSE 1 END,
+					CASE WHEN o."Open Order Quantity" > 0 THEN 0 ELSE 1 END,
+					COALESCE(o."Date_Order_Created", TO_DATE('1900-01-01')) DESC,
+					COALESCE(o."Date_Order", TO_DATE('1900-01-01')) DESC
 			) AS rn
 		FROM SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE o
 	) ranked
@@ -67,20 +67,20 @@ SHIP_ORD AS (
 -- WORKING_DAYS: computes business-day age since last pick for currently pick-flagged lines.
 WORKING_DAYS AS (
     SELECT
-        o.ID_ORD,
-        o.SEQ_LINE_ORD,
+		o."Order ID" AS ID_ORD,
+		o."Order_Sequence Line Number" AS SEQ_LINE_ORD,
         COUNT(*) AS WORKING_DAYS_SINCE_LAST_PICKED
 	FROM ORDERS_BASE o
     INNER JOIN GOLD_DATA.DIM.DIM_CALENDAR d
-        ON d.CALENDAR_DATE > CAST(o.DATE_PICK_LAST AS DATE)
+		ON d.CALENDAR_DATE > CAST(o."Date_Order_Last_Picked" AS DATE)
         AND d.CALENDAR_DATE <= CURRENT_DATE()
         AND d.IS_WEEKDAY = TRUE
         AND COALESCE(d.IS_HOLIDAY, FALSE) = FALSE
-    WHERE TO_VARCHAR(o.FLAG_PICK) = '2'
-        AND o.DATE_PICK_LAST IS NOT NULL
+	WHERE TO_VARCHAR(o."Order_Pick_Flag") = '2'
+		AND o."Date_Order_Last_Picked" IS NOT NULL
     GROUP BY
-        o.ID_ORD,
-        o.SEQ_LINE_ORD
+		o."Order ID",
+		o."Order_Sequence Line Number"
 ),
 -- WORKDAY_3_AFTER_ORD: helper calendar lookup for 3rd business day after order date.
 WORKDAY_3_AFTER_ORD AS (
@@ -89,12 +89,12 @@ WORKDAY_3_AFTER_ORD AS (
 		MIN(CALENDAR_DATE) AS result_date
 	FROM (
 		SELECT
-			CAST(o.DATE_ORD AS DATE) AS base_date,
+			CAST(o."Date_Order" AS DATE) AS base_date,
 			d.CALENDAR_DATE,
-			ROW_NUMBER() OVER (PARTITION BY CAST(o.DATE_ORD AS DATE) ORDER BY d.CALENDAR_DATE) AS rn
-		FROM (SELECT DISTINCT DATE_ORD FROM ORDERS_BASE WHERE DATE_ORD IS NOT NULL) o
+			ROW_NUMBER() OVER (PARTITION BY CAST(o."Date_Order" AS DATE) ORDER BY d.CALENDAR_DATE) AS rn
+		FROM (SELECT DISTINCT "Date_Order" FROM ORDERS_BASE WHERE "Date_Order" IS NOT NULL) o
 		INNER JOIN GOLD_DATA.DIM.DIM_CALENDAR d
-			ON d.CALENDAR_DATE > CAST(o.DATE_ORD AS DATE)
+			ON d.CALENDAR_DATE > CAST(o."Date_Order" AS DATE)
 			AND d.IS_WEEKDAY = TRUE
 			AND COALESCE(d.IS_HOLIDAY, FALSE) = FALSE
 	) ranked
@@ -108,12 +108,12 @@ WORKDAY_1_AFTER_ADD AS (
 		MIN(CALENDAR_DATE) AS result_date
 	FROM (
 		SELECT
-			CAST(o.DATE_ADD AS DATE) AS base_date,
+			CAST(o."Date_Order_Created" AS DATE) AS base_date,
 			d.CALENDAR_DATE,
-			ROW_NUMBER() OVER (PARTITION BY CAST(o.DATE_ADD AS DATE) ORDER BY d.CALENDAR_DATE) AS rn
-		FROM (SELECT DISTINCT DATE_ADD FROM ORDERS_BASE WHERE DATE_ADD IS NOT NULL) o
+			ROW_NUMBER() OVER (PARTITION BY CAST(o."Date_Order_Created" AS DATE) ORDER BY d.CALENDAR_DATE) AS rn
+		FROM (SELECT DISTINCT "Date_Order_Created" FROM ORDERS_BASE WHERE "Date_Order_Created" IS NOT NULL) o
 		INNER JOIN GOLD_DATA.DIM.DIM_CALENDAR d
-			ON d.CALENDAR_DATE > CAST(o.DATE_ADD AS DATE)
+			ON d.CALENDAR_DATE > CAST(o."Date_Order_Created" AS DATE)
 			AND d.IS_WEEKDAY = TRUE
 			AND COALESCE(d.IS_HOLIDAY, FALSE) = FALSE
 	) ranked
@@ -127,12 +127,12 @@ WORKDAY_10_AFTER_PROM AS (
 		MIN(CALENDAR_DATE) AS result_date
 	FROM (
 		SELECT
-			CAST(o.DATE_PROM AS DATE) AS base_date,
+			CAST(o."Date_Line_Promised" AS DATE) AS base_date,
 			d.CALENDAR_DATE,
-			ROW_NUMBER() OVER (PARTITION BY CAST(o.DATE_PROM AS DATE) ORDER BY d.CALENDAR_DATE) AS rn
-		FROM (SELECT DISTINCT DATE_PROM FROM ORDERS_BASE WHERE DATE_PROM IS NOT NULL) o
+			ROW_NUMBER() OVER (PARTITION BY CAST(o."Date_Line_Promised" AS DATE) ORDER BY d.CALENDAR_DATE) AS rn
+		FROM (SELECT DISTINCT "Date_Line_Promised" FROM ORDERS_BASE WHERE "Date_Line_Promised" IS NOT NULL) o
 		INNER JOIN GOLD_DATA.DIM.DIM_CALENDAR d
-			ON d.CALENDAR_DATE > CAST(o.DATE_PROM AS DATE)
+			ON d.CALENDAR_DATE > CAST(o."Date_Line_Promised" AS DATE)
 			AND d.IS_WEEKDAY = TRUE
 			AND COALESCE(d.IS_HOLIDAY, FALSE) = FALSE
 	) ranked
@@ -277,70 +277,70 @@ PRODUCT_DIM AS (
 SELECT
 	CURRENT_TIMESTAMP() AS dataRefreshTimeStamp,
 	o.OPEN_NET_AMT AS open_net_amt,
-	o.ID_CUST_SOLDTO,
+	o."Customer_ID_Sold-To",
 	CASE
-		WHEN o.LINE_COMMENT_NOTE ILIKE '%SHIP%COMPLETE%'
-		 AND o.LINE_COMMENT_NOTE NOT ILIKE '%LINE%'
+		WHEN o."Order_Line_Comment_CX_Note" ILIKE '%SHIP%COMPLETE%'
+		 AND o."Order_Line_Comment_CX_Note" NOT ILIKE '%LINE%'
 		THEN 'Y'
-	END AS ship_complete_flag,
-	o.DATE_PICK_LAST,
+	END AS "ship_complete_flag",
+	o."Date_Order_Last_Picked",
 	CASE
-		WHEN TO_VARCHAR(o.FLAG_PICK) = '2' THEN TO_VARCHAR(COALESCE(wd.WORKING_DAYS_SINCE_LAST_PICKED, 0))
+		WHEN TO_VARCHAR(o."Order_Pick_Flag") = '2' THEN TO_VARCHAR(COALESCE(wd.WORKING_DAYS_SINCE_LAST_PICKED, 0))
 		ELSE ''
 	END AS "WorkingDaysSinceLastPicked",
 	CASE
-		WHEN TO_VARCHAR(o.FLAG_PICK) = '2' THEN 'P'
+		WHEN TO_VARCHAR(o."Order_Pick_Flag") = '2' THEN 'P'
 		ELSE ''
-	END AS FLAG_PICK,
+	END AS "Order_Pick_Flag",
     CASE
-		WHEN TO_VARCHAR(o.FLAG_ACKN) = '2' THEN 'A'
+		WHEN TO_VARCHAR(o."Order_Acknowledgement_Flag") = '2' THEN 'A'
 		ELSE ''
 	END AS FLAG_ACKN,
-	o.AMT_ORD_TOTAL AS amt_ord_total,
-	o.ID_SLSREP_1,
+	o."Order_Amount_Total",
+	o."ID_Sales_Rep_1",
 	sl.ID_CARRIER,
-	o.DESCR_SHIP_VIA,
-	o.DATE_RQST as DR,
-	o.DATE_PROM as DP,
-	o.DATE_ORD as DO,
+	o."Shipping_Method_Description",
+	o."Date_Line_Requested",
+	o."Date_Line_Promised",
+	o."Date_Order",
 	CASE
-		WHEN o.DATE_RQST = o.DATE_PROM
-			THEN o.DATE_RQST
-		WHEN o.ID_CUST_SOLDTO = '102340'
-			THEN o.DATE_PROM
-		WHEN (o.FLAG_STK = 'S' OR inv."Item_Planned_Classification" IN ('AS','1A','KT','A '))
-			 AND w3.result_date >= CAST(o.DATE_PROM AS DATE)
+		WHEN o."Date_Line_Requested" = o."Date_Line_Promised"
+			THEN o."Date_Line_Requested"
+		WHEN o."Customer_ID_Sold-To" = '102340'
+			THEN o."Date_Line_Promised"
+		WHEN (o."Order_Line_Stock_Flag" = 'S' OR inv."Item_Planned_Classification" IN ('AS','1A','KT','A '))
+			 AND w3.result_date >= CAST(o."Date_Line_Promised" AS DATE)
 			THEN w1.result_date
-		ELSE o.DATE_PROM
+		ELSE o."Date_Line_Promised"
 	END AS DATE_CALC_START,
 	CASE
-		WHEN o.DATE_RQST = o.DATE_PROM
-			THEN o.DATE_RQST
-		WHEN o.ID_CUST_SOLDTO = '102340'
+		WHEN o."Date_Line_Requested" = o."Date_Line_Promised"
+			THEN o."Date_Line_Requested"
+		WHEN o."Customer_ID_Sold-To" = '102340'
 			THEN w10.result_date
-		WHEN (o.FLAG_STK = 'S' OR inv."Item_Planned_Classification" IN ('AS','1A','KT','A '))
-			 AND w3.result_date >= CAST(o.DATE_PROM AS DATE)
-			THEN o.DATE_PROM
+		WHEN (o."Order_Line_Stock_Flag" = 'S' OR inv."Item_Planned_Classification" IN ('AS','1A','KT','A '))
+			 AND w3.result_date >= CAST(o."Date_Line_Promised" AS DATE)
+			THEN o."Date_Line_Promised"
 		ELSE w10.result_date
 	END AS DATE_CALC_END,
     inv."Item_Planned_Classification",
 	-- '"id_ord"', '"seq_line_ord"', '"id_item"',
-    o.ID_ITEM,
-	o.ID_ORD,
-	o.SEQ_LINE_ORD,
+    o."Item ID_Child SKU",
+	o."Order ID",
+	o."Order_Sequence Line Number",
 	CASE
 		WHEN wc.ID_BUYER = 'AS' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'AS'
 		WHEN wc.ID_BUYER = '1A' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'AS'
 		WHEN wc.ID_BUYER = 'KT' AND inv."Qty_On_Hand" IS NOT NULL AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1 THEN 'KT'
 		ELSE ''
 	END AS alt_stk,
-	o.ID_USER_ADD,
-	o.DATE_ADD as "Date_Order_Created",
+	o."Employee_ID_User_Add",
+	o."Date_Order_Created",
 	o.ID_SO AS id_so_odbc,
     inv."Location_ID",
-	o.ID_LOC,
+	o."Item Location" AS ID_LOC,
 	CASE
-		WHEN o.ORD_COMMENT ILIKE '%#MO%' THEN 'Y'
+		WHEN o."Order_Comment_Production" ILIKE '%#MO%' THEN 'Y'
 		ELSE 'N'
 	END AS FLAG_MO,
 	CASE
@@ -348,60 +348,60 @@ SELECT
 			OR i."COMMODITY CODE" = 'FAB'
 			OR i."COMMODITY CODE" LIKE 'DF%'
 			THEN '3-FABRIC'
-		WHEN COALESCE(inv."Item_Stock_Flag", o.FLAG_STK) = 'S'
+		WHEN COALESCE(inv."Item_Stock_Flag", o."Order_Line_Stock_Flag") = 'S'
 			 AND COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1
 			THEN '1-STOCK'
 		ELSE '2-MTO'
 	END AS STOCK_STATUS,
 	i."Item_Vertical",
 	i."CODE_USER_1",
-	(o.QTY_OPEN - COALESCE(sl.QTY_SHIP, 0)) AS QTY_OPEN,
-    i."Item Status_Child Active Status" AS FLAG_STAT_ITEM,
-	o.FLAG_STK AS OL_FLAG_STK,
-	inv."Item_Stock_Flag" AS IL_FLAG_STK,
+	(o."Open Order Quantity" - COALESCE(sl.QTY_SHIP, 0)) AS QTY_OPEN,
+    i."Item Status_Child Active Status",
+	o."Order_Line_Stock_Flag",
+	inv."Item_Stock_Flag",
 	COALESCE(soq.QTY_REL, 0) AS Qty_Rel,
 	COALESCE(qty_stg.qty_start, 0) - COALESCE(qty_stg.presew_qty, 0) AS Qty_Start,
 	COALESCE(qty_stg.presew_qty, 0) AS Qty_presew,
 	COALESCE(soq_pnd.QTY_REL_PND, 0) AS Qty_Rel_PND,
 	COALESCE(soq_pnd.QTY_START_PND, 0) AS Qty_Start_PND,
 	COALESCE(sbnb.SBNB, 0) AS SBNB,
-	inv."Primary_Bin" AS BIN_PRIM,
-	inv."Item_Inventory_Reorder_Point" AS LEVEL_ROP,
+	inv."Primary_Bin",
+	inv."Item_Inventory_Reorder_Point",
     CASE
 		WHEN COALESCE(inv."Item_Inventory_Reorder_Point", 0) > 1
-			 AND COALESCE(inv."Item_Stock_Flag", o.FLAG_STK) = 'S'
+			 AND COALESCE(inv."Item_Stock_Flag", o."Order_Line_Stock_Flag") = 'S'
 			THEN 1
 		ELSE 0
 	END AS stk_test,
-	i."Unit_of_Measure_Price" AS CODE_UM_PRICE,
-	o.NAME_CUST,
+	i."Unit_of_Measure_Price",
+	o."Customer_Name",
 	wc.STAT_REC_SO,
-	wc."ShopOrder#" AS ID_SO,
-	o.QTY_SHIP_TOTAL,
+	wc."ShopOrder#",
+	o."Total Shipped Quantity",
 	sl.ID_SHIP,
-	o.CODE_STAT_ORD,
+	o."Order_Status_Code",
 	(COALESCE(inv."Qty_On_Hand", 0) - COALESCE(sbnb.SBNB, 0)) AS QTY_ONHD,
 	(COALESCE(inv."Qty_Allocated", 0) - COALESCE(sbnb.SBNB, 0)) AS QTY_ALLOC,
 	COALESCE(inv."Qty_On_Order", 0) AS QTY_ONORD,
-	inv."Item_Source_Flag" AS FLAG_SOURCE,
-	inv."Item_Bin_Tracking" AS FLAG_TRACK_BIN,
-	o.ID_PO_CUST,
+	inv."Item_Source_Flag",
+	inv."Item_Bin_Tracking",
+	o."Customer Purchase_Order_ID",
 	so.NUM_SHIPMENTS,
 	so.NUM_INVCS,
 	1 AS COUNTER,
 	wc.ID_REV_DRAW,
-	i."Item_Work Center_Rubin" AS RBN_WC
+	i."Item_Work Center_Rubin"
 FROM ORDERS_BASE o
-LEFT JOIN WC_LOOKUP wc ON TRIM(o.ID_SO) = TRIM(wc."ShopOrder#") AND wc.SHOP_ORDER_LOCATION = o.ID_LOC
-LEFT JOIN SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER inv ON o.ID_ITEM = inv."Product_ID_SKU" AND o.ID_LOC = inv."Location_ID"
-LEFT JOIN PRODUCT_DIM i ON o.ID_ITEM = i."Item ID_Child SKU"
-LEFT JOIN SHIP_LINE sl ON o.ID_ORD = sl.ID_ORD AND o.SEQ_LINE_ORD = sl.SEQ_LINE_ORD
-LEFT JOIN SHIP_ORD so ON o.ID_ORD = so.ID_ORD
-LEFT JOIN WORKING_DAYS wd ON o.ID_ORD = wd.ID_ORD AND o.SEQ_LINE_ORD = wd.SEQ_LINE_ORD
-LEFT JOIN WORKDAY_3_AFTER_ORD w3 ON CAST(o.DATE_ORD AS DATE) = w3.base_date
-LEFT JOIN WORKDAY_1_AFTER_ADD w1 ON CAST(o.DATE_ADD AS DATE) = w1.base_date
-LEFT JOIN WORKDAY_10_AFTER_PROM w10 ON CAST(o.DATE_PROM AS DATE) = w10.base_date
-LEFT JOIN SBNB ON SBNB.ID_ITEM = o.ID_ITEM AND SBNB.ID_LOC = o.ID_LOC
-LEFT JOIN SO_QTY_BY_PARENT soq ON soq.ID_ITEM_PAR = o.ID_ITEM AND soq.SHOP_ORDER_LOCATION = o.ID_LOC
-LEFT JOIN QTY_STAGING qty_stg ON qty_stg.ID_ITEM_PAR = o.ID_ITEM AND qty_stg.SHOP_ORDER_LOCATION = o.ID_LOC
-LEFT JOIN SO_QTY_PENDING_BY_PARENT soq_pnd ON soq_pnd.ID_ITEM_PAR_NP = o.ID_ITEM AND soq_pnd.SHOP_ORDER_LOCATION = o.ID_LOC;
+LEFT JOIN WC_LOOKUP wc ON TRIM(o.ID_SO) = TRIM(wc."ShopOrder#") AND wc.SHOP_ORDER_LOCATION = o."Item Location"
+LEFT JOIN SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER inv ON o."Item ID_Child SKU" = inv."Product_ID_SKU" AND o."Item Location" = inv."Location_ID"
+LEFT JOIN PRODUCT_DIM i ON o."Item ID_Child SKU" = i."Item ID_Child SKU"
+LEFT JOIN SHIP_LINE sl ON o."Order ID" = sl.ID_ORD AND o."Order_Sequence Line Number" = sl.SEQ_LINE_ORD
+LEFT JOIN SHIP_ORD so ON o."Order ID" = so.ID_ORD
+LEFT JOIN WORKING_DAYS wd ON o."Order ID" = wd.ID_ORD AND o."Order_Sequence Line Number" = wd.SEQ_LINE_ORD
+LEFT JOIN WORKDAY_3_AFTER_ORD w3 ON CAST(o."Date_Order" AS DATE) = w3.base_date
+LEFT JOIN WORKDAY_1_AFTER_ADD w1 ON CAST(o."Date_Order_Created" AS DATE) = w1.base_date
+LEFT JOIN WORKDAY_10_AFTER_PROM w10 ON CAST(o."Date_Line_Promised" AS DATE) = w10.base_date
+LEFT JOIN SBNB ON SBNB.ID_ITEM = o."Item ID_Child SKU" AND SBNB.ID_LOC = o."Item Location"
+LEFT JOIN SO_QTY_BY_PARENT soq ON soq.ID_ITEM_PAR = o."Item ID_Child SKU" AND soq.SHOP_ORDER_LOCATION = o."Item Location"
+LEFT JOIN QTY_STAGING qty_stg ON qty_stg.ID_ITEM_PAR = o."Item ID_Child SKU" AND qty_stg.SHOP_ORDER_LOCATION = o."Item Location"
+LEFT JOIN SO_QTY_PENDING_BY_PARENT soq_pnd ON soq_pnd.ID_ITEM_PAR_NP = o."Item ID_Child SKU" AND soq_pnd.SHOP_ORDER_LOCATION = o."Item Location";

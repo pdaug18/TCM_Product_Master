@@ -378,66 +378,66 @@ LINE_COMMENTS AS (
    ============================================================ */
 SELECT
     -- ── Order Key ─────────────────────────────────────────
-        l.ID_ORD,
-        l.SEQ_LINE_ORD,
+        l.ID_ORD as "Order ID",
+        l.SEQ_LINE_ORD as "Order_Sequence Line Number",
 
     -- -- ── Source Tables ─────────────────────────────────────
         -- h.HDR_SOURCE_TABLE,
-        -- l.LIN_SOURCE_TABLE,
+        l.LIN_SOURCE_TABLE as "Line_Source_Table",
 
     -- ── Customer ──────────────────────────────────────────
-        h.ID_CUST_SOLDTO,
-        h.SEQ_SHIPTO,
+        h.ID_CUST_SOLDTO as "Customer_ID_Sold-To",
+        h.SEQ_SHIPTO as "Customer_End_User_Ship_To_Sequence_#",
         -- h.ID_CUST_BILLTO,
-        h.NAME_CUST,
-        h.NAME_CUST_SHIPTO,
-        h.ID_PO_CUST,
+        h.NAME_CUST as "Customer_Name",
+        -- h.NAME_CUST_SHIPTO,
+        h.ID_PO_CUST as "Customer Purchase_Order_ID",
 
     -- ── Order Classification ──────────────────────────────
-        h.TYPE_ORD_CP,
-        h.CODE_STAT_ORD,
+        h.TYPE_ORD_CP as "Order_Type",
+        h.CODE_STAT_ORD as "Order_Status_Code",
 
     -- ── Customer Type Codes ───────────────────────────────
-        h.CODE_CUST_1,
-        h.CODE_CUST_2,
-        h.CODE_CUST_3,
+        h.CODE_CUST_1 as "Customer_Code_1",
+        h.CODE_CUST_2 as "Customer_Code_2",
+        h.CODE_CUST_3 as "Customer_Code_3",
 
     -- ── Sales Rep ─────────────────────────────────────────
-        h.ID_SLSREP_1,
-        h.ID_SLSREP_2,
-        h.ID_SLSREP_3,
+        h.ID_SLSREP_1 as "ID_Sales_Rep_1",
+        h.ID_SLSREP_2 as "ID_Sales_Rep_2",
+        h.ID_SLSREP_3 as "ID_Sales_Rep_3",
         -- h.PCT_SPLIT_COMMSN_1,
         -- h.PCT_SPLIT_COMMSN_2,
         -- h.PCT_SPLIT_COMMSN_3,
         -- h.PCT_COMMSN,
 
     -- ── Item (line-level) ─────────────────────────────────
-        l.ID_ITEM,
-        l.ID_ITEM_CUST,
+        l.ID_ITEM as "Item ID_Child SKU",
+        l.ID_ITEM_CUST as "Item ID_Customer SKU",
         -- l.ID_CONFIG,
-        l.ID_LOC,
+        l.ID_LOC as "Item Location",
         -- l.LINE_ITEM_DESCRIPTION,
-        -- l.CODE_CAT_PRDT,
+        l.CODE_CAT_PRDT as "Item_Product_Category_Code",
         -- l.CODE_CAT_COST,
         -- l.CODE_CAT_PRDT || h.CODE_CUST_1               AS CONCAT_PROD_CAT,
 
     -- ── Quantities ────────────────────────────────────────
-    l.QTY_ORG,
-    l.QTY_OPEN,
-    l.QTY_BO,
-    l.QTY_BOOK,
-    l.QTY_REL,
-    l.QTY_ALLOC,
-    l.QTY_SHIP_TOTAL,
-    l.QTY_SHIP_LAST,
+    l.QTY_ORG as "Original Order Quantity",
+    l.QTY_OPEN as "Open Order Quantity",
+    l.QTY_BO as "Backordered Quantity",
+    l.QTY_BOOK as "Booked Quantity",
+    l.QTY_REL as "Released Quantity",
+    l.QTY_ALLOC as "Allocated Quantity",
+    l.QTY_SHIP_TOTAL as "Total Shipped Quantity",
+    l.QTY_SHIP_LAST as "Last Shipped Quantity",
     l.QTY_ORG - l.QTY_SHIP_TOTAL                   AS QTY_REMAINING,
 
     -- ── Pricing (raw VP varchar — retained for audit) ─────
-    l.PRICE_LIST_VP,
-    l.PRICE_SELL_VP,
-    l.PRICE_SELL_NET_VP,
-    l.COST_UNIT_VP,
-    l.PRICE_NET,
+    l.PRICE_LIST_VP as "Price List VP",
+    l.PRICE_SELL_VP as "Price Sell VP",
+    l.PRICE_SELL_NET_VP as "Price Sell Net VP",
+    l.COST_UNIT_VP as "Cost Unit VP",
+    l.PRICE_NET as "Total_Price",
 
     -- ── Pricing (decoded numeric) ─────────────────────────
     --   VP format: RIGHT(field, 10) gives mantissa; /10000 scales
@@ -455,59 +455,59 @@ SELECT
     l.QTY_OPEN * (TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))      / 10000)   AS OPEN_MARGIN,
 
     -- ── Commission ────────────────────────────────────────
-    l.AMT_COMMSN,
+    -- l.AMT_COMMSN,
 
     -- ── Dates (header-level) ──────────────────────────────
-    h.DATE_ORD,
-    h.DATE_ADD,
-    h.DATE_BOOK_LAST,
-    h.DATE_PICK_LAST,
-    h.DATE_ACKN_LAST,
+    h.DATE_ORD as "Date_Order",
+    h.DATE_ADD as "Date_Order_Created",
+    -- h.DATE_BOOK_LAST,
+    h.DATE_PICK_LAST as "Date_Order_Last_Picked",
+    -- h.DATE_ACKN_LAST,
 
     -- ── Dates (line-level) ────────────────────────────────
-    l.DATE_RQST,
-    l.DATE_PROM,
-    l.LINE_DATE_BOOK_LAST,
-    l.LINE_DATE_SHIP_LAST,
-    l.LINE_DATE_INVC_LAST,
-    l.DATE_REL,
+    l.DATE_RQST as "Date_Line_Requested",
+    l.DATE_PROM as "Date_Line_Promised",
+    -- l.LINE_DATE_BOOK_LAST,
+    -- l.LINE_DATE_SHIP_LAST,
+    -- l.LINE_DATE_INVC_LAST,
+    -- l.DATE_REL,
 
     -- ── Shipping ──────────────────────────────────────────
-    h.ID_LOC_SHIPFM,
-    h.CODE_SHIP_VIA_CP,
-    h.DESCR_SHIP_VIA,
-    h.ADDR_1,
-    h.ADDR_2,
-    h.CITY,
-    h.ID_ST,
-    h.ZIP,
-    h.COUNTRY,
+    h.ID_LOC_SHIPFM as "Location ID_Ship-From",
+    -- h.CODE_SHIP_VIA_CP,
+    h.DESCR_SHIP_VIA as "Shipping_Method_Description",
+    -- h.ADDR_1,
+    -- h.ADDR_2,
+    -- h.CITY,
+    -- h.ID_ST,
+    -- h.ZIP,
+    -- h.COUNTRY,
 
     -- ── Terms / Discounts ─────────────────────────────────
-    h.CODE_TRMS_CP,
-    h.DESCR_TRMS,
-    h.PCT_DISC_TRMS,
-    h.PCT_DISC_ORD_1,
-    h.PCT_DISC_ORD_2,
-    h.PCT_DISC_ORD_3,
+    -- h.CODE_TRMS_CP,
+    -- h.DESCR_TRMS,
+    -- h.PCT_DISC_TRMS,
+    h.PCT_DISC_ORD_1 as "Order_Discount_Percent_1",
+    h.PCT_DISC_ORD_2 as "Order_Discount_Percent_2",
+    h.PCT_DISC_ORD_3 as "Order_Discount_Percent_3",
 
     -- ── Financials (header-level) ─────────────────────────
-    h.AMT_ORD_TOTAL,
-    h.COST_TOTAL,
-    h.AMT_FRT,
-    h.TAX_SLS,
+    h.AMT_ORD_TOTAL as "Order_Amount_Total",
+    -- h.COST_TOTAL,
+    -- h.AMT_FRT,
+    -- h.TAX_SLS,
 
     -- ── Unit of Measure ───────────────────────────────────
-    l.CODE_UM_ORD,
-    l.CODE_UM_PRICE,
-    l.RATIO_STK_PRICE,
+    l.CODE_UM_ORD as "Unit of Measure_Order",
+    l.CODE_UM_PRICE as "Unit of Measure_Price",
+    -- l.RATIO_STK_PRICE,
 
     -- ── Flags ─────────────────────────────────────────────
-    l.FLAG_PICK,
-    l.FLAG_STK,
-    l.FLAG_BO,
-    l.FLAG_PRIOR_LINE_ORD,
-    l.FLAG_ACKN,
+    l.FLAG_PICK as "Order_Pick_Flag",
+    l.FLAG_STK as "Order_Line_Stock_Flag",
+    l.FLAG_BO as "Order_Backorder_Flag",
+    -- l.FLAG_PRIOR_LINE_ORD,
+    l.FLAG_ACKN as "Order_Acknowledgement_Flag",
 
     -- ── Shop Order Linkage (FK → MASTER_SHOPORDER_TABLE) ──
     l.ID_LOC_SO,
@@ -518,29 +518,29 @@ SELECT
     l.VER_BO,
 
     -- ── Reference ─────────────────────────────────────────
-    h.ID_TERR,
-    h.ID_QUOTE,
-    h.ID_JOB,
-    l.ID_EST,
-    l.LINE_ID_QUOTE,
+    h.ID_TERR as "Employee_Territory_ID",
+    h.ID_QUOTE as "Order_Quote_ID",
+    h.ID_JOB as "Order_Job_Triggered_ID",
+    l.ID_EST as "Order_Estimate_ID",
+    l.LINE_ID_QUOTE as "Order_Line_Quote_ID",
     l.WGT_ITEM,
 
     -- ── Comments / Ship Dates ─────────────────────────────
-    c.DATE_EST_SHIP,
-    c.DATE_OLD_SHIP,
-    c.ORD_COMMENT,
-    c.LATE_CODE,
+    c.DATE_EST_SHIP as "Date_Order_Ship_Estimate",
+    c.DATE_OLD_SHIP as "Date_Order_Ship_Old",
+    c.ORD_COMMENT as "Order_Comment_Production",
+    c.LATE_CODE as "Order_Late_Code_Production",
     c.FLAG_DEL,
 
     -- ── Line Comments (CP_COMMENT) ─────────────────────────
-    lc.LINE_COMMENT_NOTE,
-    lc.LINE_COMMENT_CODE,
-    lc.LINE_COMMENT_QLFR,
-    lc.LINE_COMMENT_REF,
-    lc.LINE_COMMENT_DATE,
+    lc.LINE_COMMENT_NOTE as "Order_Line_Comment_CX_Note",
+    lc.LINE_COMMENT_CODE as "Order_Line_Comment_CX_Code",
+    lc.LINE_COMMENT_QLFR as "Order_Line_Comment_CX_Qualifier",
+    lc.LINE_COMMENT_REF as "Order_Line_Comment_CX_Reference",
+    lc.LINE_COMMENT_DATE as "Date_Order_Line_Comment_CX",
 
     -- ── User ──────────────────────────────────────────────
-    h.ID_USER_ADD
+    h.ID_USER_ADD as "Employee_ID_User_Add"
 
 FROM ORD_LIN l
 INNER JOIN ORD_HDR h

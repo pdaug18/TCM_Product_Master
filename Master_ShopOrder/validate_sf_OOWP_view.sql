@@ -6,8 +6,8 @@ DATAREFRESHTIMESTAMP	OPEN_NET_AMT	ID_CUST_SOLDTO	SHIP_COMPLETE_FLAG	DATE_PICK_LA
  */
 
  select * from SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE o
-where o.LINE_COMMENT_NOTE is not null
-and o.ID_ORD = '774073';
+where o."Order_Line_Comment_CX_Note" is not null
+and o."Order ID" = '774073';
 
 /*
 Validation checklist for OPEN_ORDERS_WITH_PRICES
@@ -53,8 +53,8 @@ SELECT
 	COUNT(*) AS matched_rows
 FROM GOLD_DATA.TCM_GOLD.OPEN_ORDERS_WITH_PRICES v
 INNER JOIN SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE o
-	ON v.ID_ORD = o.ID_ORD
-   AND v.SEQ_LINE_ORD = o.SEQ_LINE_ORD
+	ON v.ID_ORD = o."Order ID"
+   AND v.SEQ_LINE_ORD = o."Order_Sequence Line Number"
 WHERE v."Date_Order_Created" >= '2025-01-01';
 
 -- What this tests:
@@ -64,14 +64,14 @@ WHERE v."Date_Order_Created" >= '2025-01-01';
 -- TC_02: Direct field parity mismatches
 SELECT
 	COUNT_IF(NVL(v.OPEN_NET_AMT, 0) <> NVL(o.OPEN_NET_AMT, 0)) AS mm_open_net_amt,
-	COUNT_IF(NVL(v.AMT_ORD_TOTAL, 0) <> NVL(o.AMT_ORD_TOTAL, 0)) AS mm_amt_ord_total,
+	COUNT_IF(NVL(v.AMT_ORD_TOTAL, 0) <> NVL(o."Order_Amount_Total", 0)) AS mm_amt_ord_total,
 	COUNT_IF(NVL(v.ID_SO_ODBC, '') <> NVL(o.ID_SO, '')) AS mm_id_so,
-	COUNT_IF(NVL(v.CODE_STAT_ORD, '') <> NVL(o.CODE_STAT_ORD, '')) AS mm_code_stat_ord,
-	COUNT_IF(NVL(v.ID_PO_CUST, '') <> NVL(o.ID_PO_CUST, '')) AS mm_id_po_cust
+	COUNT_IF(NVL(v.CODE_STAT_ORD, '') <> NVL(o."Order_Status_Code", '')) AS mm_code_stat_ord,
+	COUNT_IF(NVL(v.ID_PO_CUST, '') <> NVL(o."Customer Purchase_Order_ID", '')) AS mm_id_po_cust
 FROM GOLD_DATA.TCM_GOLD.OPEN_ORDERS_WITH_PRICES v
 INNER JOIN SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE o
-	ON v.ID_ORD = o.ID_ORD
-   AND v.SEQ_LINE_ORD = o.SEQ_LINE_ORD
+	ON v.ID_ORD = o."Order ID"
+   AND v.SEQ_LINE_ORD = o."Order_Sequence Line Number"
 WHERE v."Date_Order_Created" >= '2025-01-01';
 
 -- What this tests:
@@ -80,14 +80,14 @@ WHERE v."Date_Order_Created" >= '2025-01-01';
 -- These are easy to break during refactors because the view transforms the raw source values.
 -- TC_03: FLAG_PICK and FLAG_ACKN transformation checks
 SELECT
-	COUNT_IF(TO_VARCHAR(o.FLAG_PICK) = '2' AND NVL(v.FLAG_PICK, '') <> 'P') AS bad_flag_pick_expected_p,
-	COUNT_IF(TO_VARCHAR(o.FLAG_PICK) <> '2' AND NVL(v.FLAG_PICK, '') <> '') AS bad_flag_pick_expected_blank,
-	COUNT_IF(TO_VARCHAR(o.FLAG_ACKN) = '2' AND NVL(v.FLAG_ACKN, '') <> 'A') AS bad_flag_ackn_expected_a,
-	COUNT_IF(TO_VARCHAR(o.FLAG_ACKN) <> '2' AND NVL(v.FLAG_ACKN, '') <> '') AS bad_flag_ackn_expected_blank
+	COUNT_IF(TO_VARCHAR(o."Order_Pick_Flag") = '2' AND NVL(v.FLAG_PICK, '') <> 'P') AS bad_flag_pick_expected_p,
+	COUNT_IF(TO_VARCHAR(o."Order_Pick_Flag") <> '2' AND NVL(v.FLAG_PICK, '') <> '') AS bad_flag_pick_expected_blank,
+	COUNT_IF(TO_VARCHAR(o."Order_Acknowledgement_Flag") = '2' AND NVL(v.FLAG_ACKN, '') <> 'A') AS bad_flag_ackn_expected_a,
+	COUNT_IF(TO_VARCHAR(o."Order_Acknowledgement_Flag") <> '2' AND NVL(v.FLAG_ACKN, '') <> '') AS bad_flag_ackn_expected_blank
 FROM GOLD_DATA.TCM_GOLD.OPEN_ORDERS_WITH_PRICES v
 INNER JOIN SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE o
-	ON v.ID_ORD = o.ID_ORD
-   AND v.SEQ_LINE_ORD = o.SEQ_LINE_ORD
+	ON v.ID_ORD = o."Order ID"
+   AND v.SEQ_LINE_ORD = o."Order_Sequence Line Number"
 WHERE v."Date_Order_Created" >= '2025-01-01';
 
 -- What this tests:
@@ -97,19 +97,19 @@ WHERE v."Date_Order_Created" >= '2025-01-01';
 -- TC_04: ship_complete_flag logic check
 SELECT
 	COUNT_IF(
-		o.LINE_COMMENT_NOTE ILIKE '%SHIP%COMPLETE%'
-		AND o.LINE_COMMENT_NOTE NOT ILIKE '%LINE%'
+		o."Order_Line_Comment_CX_Note" ILIKE '%SHIP%COMPLETE%'
+		AND o."Order_Line_Comment_CX_Note" NOT ILIKE '%LINE%'
 		AND NVL(v.SHIP_COMPLETE_FLAG, '') <> 'Y'
 	) AS bad_ship_complete_expected_y,
 	COUNT_IF(
-		NOT (o.LINE_COMMENT_NOTE ILIKE '%SHIP%COMPLETE%'
-		AND o.LINE_COMMENT_NOTE NOT ILIKE '%LINE%')
+		NOT (o."Order_Line_Comment_CX_Note" ILIKE '%SHIP%COMPLETE%'
+		AND o."Order_Line_Comment_CX_Note" NOT ILIKE '%LINE%')
 		AND NVL(v.SHIP_COMPLETE_FLAG, '') = 'Y'
 	) AS bad_ship_complete_unexpected_y
 FROM GOLD_DATA.TCM_GOLD.OPEN_ORDERS_WITH_PRICES v
 INNER JOIN SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE o
-	ON v.ID_ORD = o.ID_ORD
-   AND v.SEQ_LINE_ORD = o.SEQ_LINE_ORD
+	ON v.ID_ORD = o."Order ID"
+   AND v.SEQ_LINE_ORD = o."Order_Sequence Line Number"
 WHERE v."Date_Order_Created" >= '2025-01-01';
 
 /* ============================================================
@@ -204,10 +204,10 @@ SELECT
 	COUNT_IF(NVL(v.LEVEL_ROP, 0) <> NVL(inv."Item_Inventory_Reorder_Point", 0)) AS mm_level_rop
 FROM GOLD_DATA.TCM_GOLD.OPEN_ORDERS_WITH_PRICES v
 LEFT JOIN SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE o
-	ON v.ID_ORD = o.ID_ORD AND v.SEQ_LINE_ORD = o.SEQ_LINE_ORD
+	ON v.ID_ORD = o."Order ID" AND v.SEQ_LINE_ORD = o."Order_Sequence Line Number"
 LEFT JOIN SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER inv
-	ON o.ID_ITEM = inv."Product_ID_SKU"
-   AND o.ID_LOC = inv."Location_ID"
+	ON o."Item ID_Child SKU" = inv."Product_ID_SKU"
+   AND o."Item Location" = inv."Location_ID"
 WHERE v."Date_Order_Created" >= '2025-01-01';
 
 -- What this tests:
