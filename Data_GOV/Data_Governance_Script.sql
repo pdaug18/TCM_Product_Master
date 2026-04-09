@@ -4,9 +4,9 @@
 
 -- SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER
 
-SET DB_NAME = 'SILVER_DATA';        -- Set to the database containing the object
-SET SCHEMA_NAME = 'TCM_SILVER';  -- Set to the schema containing the object
-SET OBJECT_NAME = 'ITEM_INVENTORY_MASTER';  -- Set to the table or view name to profile
+SET DB_NAME = 'GOLD_DATA';        -- Set to the database containing the object
+SET SCHEMA_NAME = 'TCM_GOLD';  -- Set to the schema containing the object
+SET OBJECT_NAME = 'OPEN_ORDERS_WITH_PRICES';  -- Set to the table or view name to profile
 
 -- Profiling controls: for large objects, set PROFILE_ON_SAMPLE = TRUE to reduce scan cost.
 SET PROFILE_ON_SAMPLE = FALSE;  -- Set to TRUE to enable sampling for profiling (uses SAMPLE BERNOULLI)
