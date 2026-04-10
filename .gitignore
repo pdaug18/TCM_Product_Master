@@ -1,0 +1,2 @@
+# Prevent committing Snowflake local connection secrets
+config/snowflake_connect.config
