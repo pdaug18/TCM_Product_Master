@@ -265,9 +265,9 @@ BOL_HIST AS (
    ============================================================ */
 SELECT
     -- ── Shipment Key ──────────────────────────────────────
-        l.ID_ORD,
-        l.ID_SHIP,
-        l.SEQ_LINE_ORD,
+        l.ID_ORD as "Order_ID",
+        l.ID_SHIP as "Shipment_ID",
+        l.SEQ_LINE_ORD as "Shipment_Line_Sequence_#",
 
     -- ── Customer ──────────────────────────────────────────
         -- h.ID_CUST_SOLDTO,
@@ -278,8 +278,8 @@ SELECT
         -- h.ID_PO_CUST,
 
     -- ── Order Classification ──────────────────────────────
-        h.TYPE_ORD_CP,
-        h.CODE_STAT_ORD,
+        h.TYPE_ORD_CP as "Order_Type",
+        h.CODE_STAT_ORD as "Order_Status",
 
     -- ── Sales Rep ─────────────────────────────────────────
         -- h.ID_SLSREP_1,
@@ -291,19 +291,19 @@ SELECT
         -- h.PCT_COMMSN,
 
     -- ── Item (line-level) ─────────────────────────────────
-        l.ID_ITEM,
-        l.ID_LOC,
+        l.ID_ITEM as "Item ID_Child SKU",
+        l.ID_LOC as "Shipping_Location_ID", --! Is this where the item is shipping from or to? Verify and rename accordingly.
         -- l.LINE_ITEM_DESCRIPTION,
         -- l.CODE_CAT_PRDT,
         -- l.CODE_CAT_COST,
 
     -- ── Quantities ────────────────────────────────────────
-        l.QTY_SHIP,
+        l.QTY_SHIP as "Quantity_Shipped",
         -- l.QTY_OPEN,
         -- l.QTY_BO,
         -- l.QTY_ALLOC,
-        l.QTY_CARTON,
-        l.QTY_CARTON_PER,
+        l.QTY_CARTON as "Quantity_Carton",
+        l.QTY_CARTON_PER as "Quantity_Per_Carton",
 
     -- -- ── Pricing ───────────────────────────────────────────
         -- l.PRICE_LIST_VP,
@@ -313,28 +313,28 @@ SELECT
         -- l.PRICE_NET,
 
     -- ── Dates (header-level) ──────────────────────────────
-        h.DATE_SHIP,
-        h.DATE_ORD,
-        h.SHP_DATE_CREATED,
+        h.DATE_SHIP as "Date_Shipped",
+        h.DATE_ORD as "Date_Order",
+        h.SHP_DATE_CREATED as "Date_Shipment_Created",
 
     -- ── Dates (line-level) ────────────────────────────────
         -- l.DATE_RQST,
         -- l.DATE_PROM,
         -- l.LINE_DATE_BOOK_LAST,
-        l.LINE_DATE_PICK_LAST,
-        l.LINE_DATE_BOL_LAST,
-        l.LINE_DATE_CHG_LAST,
+        l.LINE_DATE_PICK_LAST as "Date_Last_Picking_Line",
+        l.LINE_DATE_BOL_LAST as "Date_Last_Bill_of_Lading_Line",
+        l.LINE_DATE_CHG_LAST as "Date_Last_Changed_Line",
 
     -- ── Shipping ──────────────────────────────────────────
-        h.ID_LOC_SHIPFM,
-        h.CODE_SHIP_VIA_CP,
-        h.DESCR_SHIP_VIA,
-        h.ADDR_1,
-        h.ADDR_2,
-        h.CITY,
-        h.ID_ST,
-        h.ZIP,
-        h.COUNTRY,
+        h.ID_LOC_SHIPFM as "Shipping_Location_ID_Ship-From",    --! Is this the same as l.ID_LOC? Verify and rename accordingly.
+        h.CODE_SHIP_VIA_CP as "Ship_Via_Code",
+        h.DESCR_SHIP_VIA as "Ship_Via_Description",
+        h.ADDR_1 as "Shipment_Address_Label_Ship-To",
+        h.ADDR_2 as "Shipment_Address_Street_Ship-To",
+        h.CITY as "Shipment_Address_City_Ship-To",
+        h.ID_ST as "Shipment_Address_State_Ship-To",
+        h.ZIP as "Shipment_Address_Zip_Ship-To",
+        h.COUNTRY as "Shipment_Address_Country_Ship-To",
 
     -- -- ── Terms / Discounts ─────────────────────────────────
         -- h.CODE_TRMS_CP,
@@ -347,31 +347,31 @@ SELECT
     -- ── Financials (header-level) ─────────────────────────
         -- h.AMT_ORD_TOTAL,
         -- h.COST_TOTAL,
-        h.AMT_FRT,
+        h.AMT_FRT as "Freight_Amount",
         -- h.TAX_SLS,
-        h.AMT_CHRG_MISC,
+        h.AMT_CHRG_MISC as "Misc_Charge_Amount",
         -- h.AMT_FEE_RESTOCK,
 
     -- ── Invoice ───────────────────────────────────────────
-        h.ID_INVC,
-        h.FLAG_INVC,
-        l.LINE_FLAG_INVC,
+        h.ID_INVC as "Invoice_ID",
+        h.FLAG_INVC as "Invoice_Flag",
+        l.LINE_FLAG_INVC as "Invoice_Line_Flag",
 
     -- ── Weight ────────────────────────────────────────────
-        h.WGT_TOTAL,
-        h.QTY_CARTON_TOTAL,
-        l.WGT_ITEM,
-        l.WGT_SHIP_TOTAL,
+        h.WGT_TOTAL as "Shipment_Weight_Total",
+        h.QTY_CARTON_TOTAL as "Qty_Carton_Total",
+        l.WGT_ITEM as "Shipment_Weight_Item",
+        l.WGT_SHIP_TOTAL as "Shipment_Weight_Line_Total",
 
     -- ── BOL / Confirmation ────────────────────────────────
-        h.ID_SHIP_BOL,
-        h.FLAG_BOL,
-        h.DATE_BOL_LAST,
-        h.CODE_STAT_CONFIRM,
-        l.FLAG_CONFIRM_SHIP,
-        l.LINE_FLAG_BOL,
-        l.LINE_FLAG_PICK,
-        l.FLAG_POST,
+        h.ID_SHIP_BOL as "Bill_of_Lading_ID",
+        h.FLAG_BOL as "Bill_of_Lading_Flag",
+        h.DATE_BOL_LAST as "Date_Last_Bill_of_Lading_Header",
+        h.CODE_STAT_CONFIRM as "Shipment_Confirmation_Status_Code",
+        l.FLAG_CONFIRM_SHIP as "Shipment_Confirmation_Line_Flag",
+        l.LINE_FLAG_BOL as "Bill_of_Lading_Line_Flag",
+        l.LINE_FLAG_PICK as "Picking_Line_Flag",
+        l.FLAG_POST as "Post_Flag",
 
     -- ── Unit of Measure ───────────────────────────────────
         -- l.CODE_UM_ORD,
@@ -398,53 +398,53 @@ SELECT
         -- l.LINE_ID_QUOTE,
 
     -- ── Bill of Lading ────────────────────────────────────
-        b.ID_VHCL,
-        b.ID_CARRIER,
-        b.NAME_CARRIER,
-        b.ACCT_SHIP_VIA,
-        b.BOL_CODE_SHIP_VIA_CP,
-        b.ID_PRO_BOL,
-        b.SEQ_STOP_BOL, -- Master Bill stop sequence (1, 2, 3...) for multi-stop BOLs
-        b.PNT_ORG,      -- Line of origin for multi-stop BOLs
-        b.BOL_ID_LOC,
-        b.ID_BATCH_INVC,
-        b.BOL_ID_INVC,
-        b.BOL_WGT_SHIP_TOTAL,
-        b.WGT_CONTENT,
-        b.QTY_CUBES,
-        b.BOL_QTY_CARTON,
-        b.QTY_PALLETS,
-        b.VOL_CONT,
-        b.QTY_CONT_1,
-        b.VOL_SHIP_NET,
-        b.FLAG_COL_PPD_FRT,-- Pre-paid Freight code
-        b.CODE_COL_PPD, -- Pre-paid Collect code
-        b.DESCR_COL_PPD,-- Pre-paid Collect description
-        b.AMT_COD,      -- Cash on Delivery amount
-        b.AMT_COD_FC,   -- Cash on Delivery amount in foreign currency
-        b.AMT_COD_FEE,
-        b.AMT_COD_FEE_FC,
-        b.BOL_ADDR_1,
-        b.BOL_ADDR_2,
-        b.BOL_ADDR_3,
-        b.BOL_ADDR_4,
-        b.ADDR_1_THIRD,
-        b.ADDR_2_THIRD,
-        b.CITY_THIRD,
-        b.ID_ST_THIRD,
-        b.COUNTRY_THIRD,
-        b.PROV_THIRD,
-        b.ZIP_THIRD,
-        b.DATE_DELIV_EARLIEST,
-        b.DATE_DELIV_LATEST,
-        b.REF_CUST,
-        b.FLAG_SHIP_COMP,
-        b.BOL_DATE_CREATED,
-        b.BOL_TIME_ADD,
-        b.BOL_ID_USER_ADD,
-        b.BOL_DATE_CHANGED,
-        b.BOL_TIME_CHG,
-        b.BOL_ID_USER_CHG
+        b.ID_VHCL as "Vehicle_ID",
+        b.ID_CARRIER as "Carrier_ID",
+        b.NAME_CARRIER as "Carrier_Name",
+        b.ACCT_SHIP_VIA as "Ship_Via_Account",
+        b.BOL_CODE_SHIP_VIA_CP as "Bill_of_Lading_Ship_Via_Code",
+        b.ID_PRO_BOL as "Bill_of_Lading_Pro_Number",
+        b.SEQ_STOP_BOL as "Bill_of_Lading_Stop_Sequence",
+        b.PNT_ORG as "Point_of_Origin",
+        b.BOL_ID_LOC as "Bill_of_Lading_Location_ID",
+        b.ID_BATCH_INVC as "Invoice_Batch_ID",
+        b.BOL_ID_INVC as "Invoice_Bill_of_Lading_ID",
+        -- b.BOL_WGT_SHIP_TOTAL as "BOL_Shipment_Total_Weight", --! Redundant with l.WGT_SHIP_TOTAL; verify and remove one or the other.
+        b.WGT_CONTENT as "Shipment_Weight_Of_Contents",
+        b.QTY_CUBES as "Shipment_Quantity_Of_Cubic_Feet",
+        -- b.BOL_QTY_CARTON as "BOL_Quantity_Carton",
+        b.QTY_PALLETS as "Quantity_Pallets",
+        b.VOL_CONT as "Content_Volume",
+        b.QTY_CONT_1 as "Quantity_Container_1",
+        b.VOL_SHIP_NET as "Shipment_Volume_Net",
+        b.FLAG_COL_PPD_FRT as "Freight_Collect_Pre-Paid_Flag",
+        b.CODE_COL_PPD as "Pre-Paid_Collect_Code",
+        b.DESCR_COL_PPD as "Pre-Paid_Collect_Description",
+        b.AMT_COD as "Cash_On_Delivery_Amount",      
+        b.AMT_COD_FC as "Cash_On_Delivery_Foreign_Currency",   
+        b.AMT_COD_FEE as "Cash_On_Delivery_Fee_Amount",
+        b.AMT_COD_FEE_FC as "Cash_On_Delivery_Fee_Foreign_Currency",
+        b.BOL_ADDR_1 as "Bill_Of_Lading_Address_1",
+        b.BOL_ADDR_2 as "Bill_Of_Lading_Address_2",
+        b.BOL_ADDR_3 as "Bill_Of_Lading_Address_3",
+        b.BOL_ADDR_4 as "Bill_Of_Lading_Address_4",
+        -- b.ADDR_1_THIRD as "BOL_Third_Party_Address_1",
+        -- b.ADDR_2_THIRD as "BOL_Third_Party_Address_2",
+        -- b.CITY_THIRD as "BOL_Third_Party_City",
+        -- b.ID_ST_THIRD as "BOL_Third_Party_State",
+        -- b.COUNTRY_THIRD as "BOL_Third_Party_Country",
+        -- b.PROV_THIRD as "BOL_Third_Party_Province",
+        -- b.ZIP_THIRD as "BOL_Third_Party_Zip",
+        b.DATE_DELIV_EARLIEST as "Date_Delivery_Earliest",
+        b.DATE_DELIV_LATEST as "Date_Delivery_Latest",
+        b.REF_CUST as "Shipment_Customer_Reference",
+        b.FLAG_SHIP_COMP as "Shipment_Completion_Flag",
+        b.BOL_DATE_CREATED as "Date_Bill_Of_Lading_Created",
+        b.BOL_TIME_ADD as "Date_Bill_Of_Lading_Time_Added",
+        b.BOL_ID_USER_ADD as "Bill_Of_Lading_User_Added",
+        b.BOL_DATE_CHANGED as "Date_Bill_Of_Lading_Changed",
+        b.BOL_TIME_CHG as "Date_Bill_Of_Lading_Time_Changed",
+        b.BOL_ID_USER_CHG as "Bill_Of_Lading_User_Change"
 
 FROM SHP_LIN l
 INNER JOIN SHP_HDR h

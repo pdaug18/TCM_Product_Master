@@ -280,11 +280,11 @@ item_planner AS (
         b.id_item                                   AS "Item ID_Child SKU",
         UPPER(b."Item Description_Child SKU")       AS "Item Description_Child SKU",
         b."COST CATEGORY"                           AS "Item_Cost Category ID",
-        UPPER(COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY'))                 AS "COST CAT DESCR",
-        UPPER(b."NSA_PRODUCT CATEGORY/VERTICAL")    AS "PRODUCT CATEGORY/VERTICAL",
-        UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) AS "PRDT CAT DESCR",
-        b."CODE_COMM"                               AS "COMMODITY CODE",
-        b."RATIO_STK_PUR",
+        UPPER(COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY'))                 AS "Item_Cost_Category",
+        UPPER(b."NSA_PRODUCT CATEGORY/VERTICAL")    AS "Item_Vertical_Code",
+        UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) AS "Item_Vertical",
+        b."CODE_COMM"                               AS "Item_Commodity_Code",
+        b."RATIO_STK_PUR" as "Item_Ratio_Purchase_to_Stock",
         UPPER(v.vertical)                           AS "Item_Vertical",
         UPPER(c.category)                           AS "CATEGORY (Calc)",
         ic.COST_MATL_ACCUM_CRNT                     AS "Cost_Material_Accumulated_Current",
@@ -382,8 +382,8 @@ item_planner AS (
         UPPER(CASE 
             WHEN apit.cnt >= 1 THEN 'A'
             ELSE pd.PARENT_ITEM_STATUS
-        END)                                        AS "Adj_Parent_Item_Status",
-        ip.id_planner                               AS "ID_PLANNER"
+        END)                                        AS "Item_Status_Parent_Active_Status_Adjusted",
+        ip.id_planner                               AS "Item_Planned Classification"
         -- ip.PRIMARY_LOC_FLAG                         AS "PRIMARY_LOC_FLAG"
 
     FROM ITMMAS_BASE b

@@ -300,7 +300,7 @@ ORD_LIN AS (
         p.ID_EST,
         p.ID_QUOTE                  AS LINE_ID_QUOTE,
 
-        p.WGT_ITEM,
+        p.WGT_ITEM,                 -- Note: WGT_ITEM is null in CP_ORDLIN_Bronze but populated in CP_ORDLIN_PERM_Bronze, so we still want to bring it in for historical orders
 
         p.ID_USER_ADD
 
@@ -319,7 +319,7 @@ ORD_COMMENTS AS (
         c.DATE_OLD_SHIP,
         c.COMMENT                   AS ORD_COMMENT,
         c.LATE_CODE,                 --! LATE_CODE values are defined as follows (per business)? [ NULL->79587,  1->307, 2->272, 9->48, 6->43, 3->10, 4->6, 5->4 ]   LATE_ORDER_CODE table in TCM to get the description.
-        c.FLAG_DEL,
+        c.FLAG_DEL,             
     FROM (
         SELECT
             ID_ORD,
@@ -442,17 +442,15 @@ SELECT
     -- ── Pricing (decoded numeric) ─────────────────────────
     --   VP format: RIGHT(field, 10) gives mantissa; /10000 scales
     --   TRY_CAST handles non-numeric VP values gracefully (→ NULL)
-    TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))       / 10000   AS COST_UNIT,
-    TRY_CAST(RIGHT(l.PRICE_LIST_VP, 10) AS DECIMAL(18,6))      / 10000   AS PRICE_LIST,
-    TRY_CAST(RIGHT(l.PRICE_SELL_VP, 10) AS DECIMAL(18,6))      / 10000   AS PRICE_SELL,
-    TRY_CAST(RIGHT(l.PRICE_SELL_NET_VP, 10) AS DECIMAL(18,6))  / 10000   AS PRICE_SELL_NET,
+    TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))       / 10000   AS "Unit_Cost_at_Order",
+    TRY_CAST(RIGHT(l.PRICE_LIST_VP, 10) AS DECIMAL(18,6))      / 10000   AS "List_Price_at_Order",
+    TRY_CAST(RIGHT(l.PRICE_SELL_VP, 10) AS DECIMAL(18,6))      / 10000   AS "Sell_Price_at_Order",
+    TRY_CAST(RIGHT(l.PRICE_SELL_NET_VP, 10) AS DECIMAL(18,6))  / 10000   AS "Net_Sell_Price_at_Order",
 
     -- ── Open-Value Calculations ───────────────────────────
-    l.QTY_OPEN * (TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))      / 10000)   AS OPEN_COST,
-    l.QTY_OPEN * (TRY_CAST(RIGHT(l.PRICE_SELL_NET_VP, 10) AS DECIMAL(18,6)) / 10000)   AS OPEN_NET_AMT,
-    l.QTY_OPEN * (TRY_CAST(RIGHT(l.PRICE_LIST_VP, 10) AS DECIMAL(18,6))     / 10000)   AS OPEN_LIST_AMT,
-    l.QTY_OPEN * (TRY_CAST(RIGHT(l.PRICE_SELL_NET_VP, 10) AS DECIMAL(18,6)) / 10000)   AS OPEN_SELL_AMT, 
-    l.QTY_OPEN * (TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))      / 10000)   AS OPEN_MARGIN,
+    l.QTY_OPEN * (TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))      / 10000)   AS "Open_Cost_At_Order",
+    l.QTY_OPEN * (TRY_CAST(RIGHT(l.PRICE_SELL_NET_VP, 10) AS DECIMAL(18,6)) / 10000)   AS "Open_Net_Sell_At_Order",
+    l.QTY_OPEN * (TRY_CAST(RIGHT(l.PRICE_LIST_VP, 10) AS DECIMAL(18,6))     / 10000)   AS "Open_List_Price_At_Order",
 
     -- ── Commission ────────────────────────────────────────
     -- l.AMT_COMMSN,
@@ -510,12 +508,12 @@ SELECT
     l.FLAG_ACKN as "Order_Acknowledgement_Flag",
 
     -- ── Shop Order Linkage (FK → MASTER_SHOPORDER_TABLE) ──
-    l.ID_LOC_SO,
-    l.ID_SO,
-    l.SUFX_SO,
+    l.ID_LOC_SO as "Shop_Order_Location_ID",
+    l.ID_SO as "Shop_Order_ID",
+    l.SUFX_SO as "Shop_Order_ID_Suffix",
 
     -- ── Backorder ─────────────────────────────────────────
-    l.VER_BO,
+    l.VER_BO as "Version_Backorder",
 
     -- ── Reference ─────────────────────────────────────────
     h.ID_TERR as "Employee_Territory_ID",
@@ -523,7 +521,7 @@ SELECT
     h.ID_JOB as "Order_Job_Triggered_ID",
     l.ID_EST as "Order_Estimate_ID",
     l.LINE_ID_QUOTE as "Order_Line_Quote_ID",
-    l.WGT_ITEM,
+    -- l.WGT_ITEM,
 
     -- ── Comments / Ship Dates ─────────────────────────────
     c.DATE_EST_SHIP as "Date_Order_Ship_Estimate",

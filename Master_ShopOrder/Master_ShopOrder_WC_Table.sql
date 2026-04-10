@@ -203,13 +203,12 @@ SO_MATL_AGG AS (
    ============================================================ */
 SELECT
     -- ── Business Key ──────────────────────────────────────
-    h.ID_LOC                                        AS SHOP_ORDER_LOCATION,
-    LTRIM(h.ID_SO)                                  AS "ShopOrder#",
-    h.SUFX_SO,
-    CONCAT(LTRIM(h.ID_SO), h.SUFX_SO)              AS SH_SO_AND_SUFX,
+    h.ID_LOC                                        AS "Shop_Order_Location_ID",
+    LTRIM(h.ID_SO)                                  AS "Shop_Order_ID",
+    h.SUFX_SO,                                      AS "Shop_Order_ID_Suffix",
 
     -- ── Item ──────────────────────────────────────────────
-    h.ID_ITEM_PAR,
+    h.ID_ITEM_PAR                                  AS "Item ID_Parent SKU",
     h.DESCR_ITEM_1,
     h.DESCR_ITEM_2,
 
@@ -316,6 +315,7 @@ SELECT
     wceff.FIRST_SHIFT_TEAMS,
     wceff.SECOND_SHIFT_TEAMS
 
+-- SO_HDR: Shop order header (1 row per shop order)
 FROM SO_HDR h
 
 -- Core join: changes grain to 1 row per operation
@@ -323,35 +323,40 @@ INNER JOIN SO_OPER_DETAIL od
     ON  h.ID_SO    = od.ID_SO
     AND h.SUFX_SO  = od.SUFX_SO
 
--- Routing WC override (matched on item + operation)
+-- ROUTMS_OPER: Brings in work centre overrides at the operation level (1 row per operation, but may be null if no override exists)
 LEFT JOIN RTE_OPER rto
     ON  h.ID_ITEM_PAR = rto.ID_ITEM
     AND od.ID_OPER    = rto.ID_OPER
 
+-- SO_APPROVE: Brings in approval dates (1 row per shop order, but may be null if no approval record exists)
 -- Approval events (earliest per shop order)
 LEFT JOIN SO_APPROVE sap
     ON  CONCAT(LTRIM(h.ID_SO), h.SUFX_SO) = sap.SA_SO_AND_SUFX
 
 
 -- Pre-production floor indicator
+-- PREPOD: Identifies shop orders currently on the production floor (1 row per shop order, but may be null if not currently on the floor)
 LEFT JOIN PREPROD sop
     ON  LTRIM(h.ID_SO) = sop.SOFROMPREPROD
     AND h.SUFX_SO      = sop.SUFX_SO
 
 
 -- Operation aggregates (denormalized onto each operation row)
+-- SO_OPER_AGG: Brings in operation-level metrics rolled up to the shop order header level (1 row per shop order, but may be null if no operations exist for the order)
 LEFT JOIN SO_OPER_AGG o
     ON  h.ID_LOC   = o.ID_LOC
     AND h.ID_SO    = o.ID_SO
     AND h.SUFX_SO  = o.SUFX_SO
 
 -- Material aggregates
+-- SO_MATL_AGG: Brings in material/component metrics rolled up to the shop order header level (1 row per shop order, but may be null if no materials/components exist for the order)
 LEFT JOIN SO_MATL_AGG m
     ON  h.ID_LOC   = m.ID_LOC
     AND h.ID_SO    = m.ID_SO
     AND h.SUFX_SO  = m.SUFX_SO
 
 -- Work centre efficiency & staffing
+-- WORK_CENTER_MINUTES_EMPLOYEE_SUMMARY: Brings in work centre efficiency metrics and staffing details (1 row per work centre, but may be null if no matching work centre record exists)
 LEFT JOIN SILVER_DATA.TCM_SILVER.WORK_CENTER_MINUTES_EMPLOYEE_SUMMARY wceff
     ON  TRIM(CASE WHEN rto.RTOWC IS NULL THEN od.SOPERWC ELSE rto.RTOWC END) = TRIM(wceff.WORK_CENTER)
     AND TRIM(h.ID_LOC)                                                        = TRIM(wceff.WORK_CENTER_LOCATION)
