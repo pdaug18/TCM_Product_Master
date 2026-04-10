@@ -33,10 +33,10 @@ FinishedGoods AS (
     SELECT
         il.id_item,
         il.id_loc,
-        CASE 
-            WHEN fg.descr_2 IS NOT NULL THEN CONCAT(fg.descr_1, ' || ', fg.descr_2)
-            ELSE fg.descr_1
-        END AS item_description,
+        -- CASE 
+        --     WHEN fg.descr_2 IS NOT NULL THEN CONCAT(fg.descr_1, ' || ', fg.descr_2)
+        --     ELSE fg.descr_1
+        -- END AS item_description,
         il.BIN_PRIM,
         il.flag_source,
         il.flag_stk,
@@ -134,7 +134,7 @@ ItemSourceData AS (
     SELECT
         fg.id_item,
         fg.id_loc,
-        fg.item_description,
+        -- fg.item_description,
         fg.flag_source,
         fg.flag_stk,
         fg.flag_track_bin,
@@ -187,7 +187,7 @@ ItemSourceData AS (
 FinalData AS (
 SELECT
     isd.id_item,
-    isd.item_description,
+    -- isd.item_description,
     isd.id_loc,
 
     CASE 
@@ -241,37 +241,38 @@ FROM
     ItemSourceData isd
 )
 SELECT 
-    fd.id_item                  AS "Product_ID_SKU",
-    fd.item_description         AS "Item_Description",
-    fd.id_loc                   AS "Location_ID",
-    fd.flag_source              AS "Item_Source_Flag",
-    fd.primary_source           AS "Primary_Source",
-    fd.NSA_Manufactured         AS "NSA_Manufactured",
-    fd.QTY_ONHD                 AS "Qty_On_Hand",
-    fd.QTY_ALLOC                AS "Qty_Allocated",
-    fd.QTY_ONORD                AS "Qty_On_Order",
-    fd.BIN_PRIM                AS  "Primary_Bin",
+    fd.id_item                  AS "Item_ID_Child_SKU",
+    -- fd.item_description         AS "Item_Description",
+    fd.id_loc                   AS "Inventory_Location_ID",
+    fd.flag_source              AS "Item_Sourcing_Type_Flag",
+    fd.primary_source           AS "Item_Primary_Source_by_Location",
+    fd.NSA_Manufactured         AS "Item_NSA_Manufactured_Status",
+    fd.QTY_ONHD                 AS "Inventory_Quantity_On_Hand",
+    fd.QTY_ALLOC                AS "Inventory_Quantity_Allocated",
+    fd.QTY_ONORD                AS "Inventory_Quantity_On_Order",
+    fd.BIN_PRIM                AS  "Item_Primary_Bin_by_Location",
     fd.flag_stk                 AS "Item_Stock_Flag",
     fd.flag_track_bin           AS "Item_Bin_Tracking",
-    fd.flag_cntrl               AS "Item_Controlled_Noncontrolled_Flag",
+    fd.flag_cntrl               AS "Item_Controlled_Noncontrolled_Flag",    --! Need confirmation
     fd.flag_fulfill_type        AS "Item_Fulfillment_Type",
     fd.flag_plcy_ord            AS "Item_Order_Policy_Flag",
     fd.id_planner               AS "Item_Planned_Classification",
-    fd.type_loc                 AS "Item_Primary_Location_Type",
+    fd.type_loc                 AS "Inventory_Location_Type",
     fd.id_rte                   AS "Item_Routing_Number",
     fd.flag_iss_auto_sf         AS "Item_Shop_Floor_Auto_Issue_Flag",
-    fd.id_loc_home              AS "Item_Home_Location_Code",
+    fd.id_loc_home              AS "Item_Home_Location_Code",               --! Need to confirm
     fd.level_rop                AS "Item_Inventory_Reorder_Point",
     fd.qty_min_rop              AS "Item_Inventory_Reorder_Point_Minimum",
     fd.qty_mult_ord_rop         AS "Item_Inventory_Reorder_Point_Mult",
     fd.qty_ord_econ             AS "Item_Order_Quantity_Econ",
-    fd.lt_rop                   AS "Item_Reorder_Point_Lead_Time",
-    fd.Qty_Cut                  AS "Qty_Cut",
-    fd.Qty_Rel                  AS "Qty_Released",
+    fd.lt_rop                   AS "Item_Inventory_Reorder_Point_Lead_Time",
+    fd.Qty_Cut                  AS "Inventory_Quantity_Cut",
+    fd.Qty_Rel                  AS "Inventory_Quantity_Released",
     CASE 
         WHEN fd.primary_source = ln.loc_name THEN 'P'
         ELSE 'S'
-    END                         AS "Source_Location_Match_Flag"
+    END                         AS "Source_Location_Match_Flag" --! Need to confirm
+    --! Inventory_Qunaity_in-Transit is not included.
 FROM FinalData fd
 LEFT JOIN LocationNames ln ON fd.id_loc = ln.id_loc
 order by fd.id_item, fd.id_loc;

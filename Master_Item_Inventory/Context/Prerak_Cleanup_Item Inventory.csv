@@ -1,0 +1,30 @@
+﻿Table,Current Master Field,Needed Master Field,Rename Needed?,Belongs in Open Orders?,Notes / Join comments
+Item Inventory Master,Item_Controlled_Noncontrolled_Flag,,,,
+Item Inventory Master,Item_Home_Location_Code,does this become Item_Reorder_Point_Location,,,"issue here - how are there multiple ""home"" location codes per item? Wouldn't this also really be the ""Item_Primary_Location_ID"" from the product master table? And be named as such; comes from itmmas_reord table and column name is id_loc_home - what is this field? "
+Item Inventory Master,Item_Primary_Location_Type,Inventory_Location_Type,yes,**question,comes from type_loc in bronze itmmas_loc -  - does this become some sort of Inventory_Home_Location_Flag? 
+Item Inventory Master,Location_ID,Inventory_Location_ID,yes,**question,** would use only the primary location for the item - but this would probably be pulled in from the item master; could we have a string field that has all secondary locations or would this explode your brain?
+Item Inventory Master,Item_Order_Policy_Flag,Item_Order_Policy_Flag,,,
+Item Inventory Master,Item_Planned_Classification,Item_Planned_Classification,,,
+Item Inventory Master,Item_Routing_Number,Item_Routing_Number,,,
+Item Inventory Master,Item_Shop_Floor_Auto_Issue_Flag,Item_Shop_Floor_Auto_Issue_Flag,,,
+Item Inventory Master,Item_Source_Flag,Item_Sourcing_Type_Flag,yes,,
+Item Inventory Master,Item_Stock_Flag,Item_Stock_Flag,,,
+Item Inventory Master,NSA_Manufactured,Item_NSA_Manufactured_Status,yes,,
+Item Inventory Master,Primary Bin,Item_Primary_Bin_by_Location,yes,,
+Item Inventory Master,Primary Source,Item_Primary_Source_by_Location,yes,,
+Item Inventory Master,Product ID SKU,Item_ID_Child_SKU,yes,yes,remove after join
+Item Inventory Master,Source Location Match Flag,Source Location Match Flag,yes,**question,if it is primary vs secondar location - then rename? Item_Primary_Location_Status
+Item Inventory Master,Item_Bin_Tracking,Item_Bin_Tracking,,,how does this differ from the item master? Is this a join key? The values here make no sense and don't appear to be bin tracking ids
+Item Inventory Master,Item_Fulfillment_Type,Item_Fulfillment_Type,,,
+Item Inventory Master,Item_Inventory_Reorder_Point,Item_Inventory_Reorder_Point,,,
+Item Inventory Master,Item_Inventory_Reorder_Point_Minimum,Item_Inventory_Reorder_Point_Minimum,,,
+Item Inventory Master,Item_Inventory_Reorder_Point_Mult,Item_Inventory_Reorder_Point_Mult,,,
+Item Inventory Master,Item_Order_Quantity_Econ,Item_Order_Quantity_Econ,,,
+Item Inventory Master,Item_Reorder_Point_Lead_Time,Item_Inventory_Reorder_Point_Lead_Time,,,
+Item Inventory Master,Qty Allocated,Inventory_Quantity_Allocated,yes,yes*,aggregated total: 3 ways: Inventory_Quantity_Allocated_Primary_Location; Inventory_Quantity_Allocated_Secondary_Location; Inventory_Quantity_Allocated_Total
+Item Inventory Master,Qty Cut,Inventory_Quantity_Cut,yes,yes*,aggregated total: 3 ways: Inventory_Quantity_Cut_Primary_Location; Inventory_Quantity_Cut_Secondary_Location; Inventory_Quantity_Cut_Total
+Item Inventory Master,Qty On Hand,Inventory_Quantity_On_Hand,yes,yes*,aggregated total: 3 ways: Inventory_Quantity_On_Hand_Primary_Location; Inventory_Quantity_On_Hand_Secondary_Location; Inventory_Quantity_On_Hand_Total
+Item Inventory Master,Qty On Order,Inventory_Quantity_On_Order,yes,yes*,aggregated total: 3 ways: Inventory_Quantity_On_Order_Primary_Location; Inventory_Quantity_On_Order_Secondary_Location; Inventory_Quantity_On_Order_Total
+Item Inventory Master,Qty Released,Inventory_Quantity_Released,yes,yes*,aggregated total: 3 ways: Inventory_Quantity_Released_Primary_Location; Inventory_Quantity_Released_Secondary_Location; Inventory_Quantity_Released_Total
+Item Inventory Master,,Inventory_Quantity_In-Transit,,yes*,MISSING AND IMPORTANT; aggregated total: 3 ways: Inventory_Quantity_In-Transit_Primary_Location; Inventory_Quantity_In-Transit_Secondary_Location; Inventory_Quantity_In-Transit_Total
+,Item_Description,,,,remove - will be brought in from the product master
