@@ -276,4 +276,3 @@ FROM FinalData fd
 LEFT JOIN LocationNames ln ON fd.id_loc = ln.id_loc
 order by fd.id_item, fd.id_loc;
 
-

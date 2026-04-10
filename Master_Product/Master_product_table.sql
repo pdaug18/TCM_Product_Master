@@ -339,7 +339,7 @@ item_planner AS (
         pv.code_um_vnd                              AS "Unit_of_Measure_Vendor_Code",
         s."ATTR (SKU) ID_PARENT"                    AS "Item ID_Parent SKU",
         UPPER(CASE
-            WHEN "PRDT CAT DESCR" ILIKE '%FABRIC%' AND pd."Item Description_Parent SKU" IS NULL
+            WHEN "Item_Vertical" ILIKE '%FABRIC%' AND pd."Item Description_Parent SKU" IS NULL
             THEN b."Item Description_Child SKU"
             ELSE COALESCE(pd."Item Description_Parent SKU", 'MISSING DESCRIPTION - UPDATE TCM')
         END)                                        AS "Item Description_Parent SKU",
