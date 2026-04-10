@@ -280,11 +280,11 @@ item_planner AS (
         b.id_item                                   AS "Item ID_Child SKU",
         UPPER(b."Item Description_Child SKU")       AS "Item Description_Child SKU",
         b."COST CATEGORY"                           AS "Item_Cost Category ID",
-        UPPER(COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY'))                 AS "Item_Cost_Category",
-        UPPER(b."NSA_PRODUCT CATEGORY/VERTICAL")    AS "Item_Vertical_Code",
-        UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) AS "Item_Vertical",
-        b."CODE_COMM"                               AS "Item_Commodity_Code",
-        b."RATIO_STK_PUR" as "Item_Ratio_Purchase_to_Stock",
+        UPPER(COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY'))                 AS "COST CAT DESCR",
+        UPPER(b."NSA_PRODUCT CATEGORY/VERTICAL")    AS "PRODUCT CATEGORY/VERTICAL",
+        UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) AS "PRDT CAT DESCR",
+        b."CODE_COMM"                               AS "COMMODITY CODE",
+        b."RATIO_STK_PUR",
         UPPER(v.vertical)                           AS "Item_Vertical",
         UPPER(c.category)                           AS "CATEGORY (Calc)",
         ic.COST_MATL_ACCUM_CRNT                     AS "Cost_Material_Accumulated_Current",
@@ -339,7 +339,7 @@ item_planner AS (
         pv.code_um_vnd                              AS "Unit_of_Measure_Vendor_Code",
         s."ATTR (SKU) ID_PARENT"                    AS "Item ID_Parent SKU",
         UPPER(CASE
-            WHEN "Item_Vertical" ILIKE '%FABRIC%' AND pd."Item Description_Parent SKU" IS NULL
+            WHEN "PRDT CAT DESCR" ILIKE '%FABRIC%' AND pd."Item Description_Parent SKU" IS NULL
             THEN b."Item Description_Child SKU"
             ELSE COALESCE(pd."Item Description_Parent SKU", 'MISSING DESCRIPTION - UPDATE TCM')
         END)                                        AS "Item Description_Parent SKU",
@@ -382,8 +382,8 @@ item_planner AS (
         UPPER(CASE 
             WHEN apit.cnt >= 1 THEN 'A'
             ELSE pd.PARENT_ITEM_STATUS
-        END)                                        AS "Item_Status_Parent_Active_Status_Adjusted",
-        ip.id_planner                               AS "Item_Planned Classification"
+        END)                                        AS "Adj_Parent_Item_Status",
+        ip.id_planner                               AS "ID_PLANNER"
         -- ip.PRIMARY_LOC_FLAG                         AS "PRIMARY_LOC_FLAG"
 
     FROM ITMMAS_BASE b
@@ -402,4 +402,3 @@ item_planner AS (
     LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Item ID_Child SKU"
     LEFT JOIN item_planner        ip  ON b.id_item = ip.id_item
     WHERE b.code_comm <> 'PAR';
-
