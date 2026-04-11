@@ -16,26 +16,26 @@ SELECT
        --------------------------- */
     o."Customer_ID_Sold-To",
     o."Customer_End_User_Ship_To_Sequence_#",
-    o."Customer_Billto_Id",
-    o."Customer_Name",
-    o."Shipping_Customer_Name",
-    o."Customer_Market",
-    o."Customer_Segment",
+    o."Customer_ID_Bill-To",
+    o."Customer_Name_Sold-To",
+    o."Customer_Name_Ship-To",
+    -- o."Customer_Market", --! verify column exists in MASTER_ORDERS_TABLE or CUSTOMER_MASTER_SILVER
+    -- o."Customer_Segment", --! verify column exists in MASTER_ORDERS_TABLE or CUSTOMER_MASTER_SILVER
     o."Customer_Credit_Status",
-    o."Customer_Terms_Code",
+    o."Customer_Credit_Terms_Code",
 
     /* ---------------------------
        Item / Product
        --------------------------- */
-    o."Item ID_Child SKU",
-    o."Item ID_Parent SKU",
-    o."Item Description_Child SKU",
-    o."Item Description_Parent SKU",
+   o."Item ID_Child SKU" AS "Item_ID_Child_SKU",
+    o."Item_ID_Parent_SKU",
+    o."Item_Description_Child_SKU",
+    o."Item_Description_Parent_SKU",
     o."Item Location",
     o."Item_Vertical",
-    o."CATEGORY (Calc)",
-    o."Item Status_Child Active Status",
-   o."Item Status_Parent Active Status" AS "Item_Status_Parent_Active_Status_Adjusted",
+    -- o."CATEGORY (Calc)", --! CATEGORY (Calc) removed from Master_product_table (no Needed Master Field mapping)
+    o."Item_Status_Child_Active_Status",
+   o."Item_Status_Parent_Active_Status" AS "Item_Status_Parent_Active_Status_Adjusted",
 
     /* ---------------------------
        Order Status, Dates, Qty
@@ -68,13 +68,13 @@ SELECT
     /* ---------------------------
        Inventory
        --------------------------- */
-    o."Primary_Source",
-    o."Item_Source_Flag",
-    o."Qty_On_Hand",
-    o."Qty_Allocated",
-    o."Qty_On_Order",
-    o."Qty_Cut",
-    o."Qty_Released",
+    o."Item_Primary_Source_by_Location",
+    o."Item_Sourcing_Type_Flag",
+    o."Inventory_Quantity_On_Hand",
+    o."Inventory_Quantity_Allocated",
+    o."Inventory_Quantity_On_Order",
+    o."Inventory_Quantity_Cut",
+    o."Inventory_Quantity_Released",
 
     /* ---------------------------
        Shipment rollups

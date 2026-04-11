@@ -32,12 +32,12 @@ PRODUCT_DIM AS (
 		p.*
 	FROM SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE p
 	QUALIFY ROW_NUMBER() OVER (
-		PARTITION BY p."Item ID_Child SKU"
+		PARTITION BY p."Item_ID_Child_SKU"
 		ORDER BY
-			CASE WHEN COALESCE(p."Item Status_Child Active Status", '') = 'A' THEN 0 ELSE 1 END,
-			CASE WHEN COALESCE(p."Item_Location ID", '') = '10' THEN 0 ELSE 1 END,
-			COALESCE(p."Item_Location ID", ''),
-			COALESCE(p."Item ID_Parent SKU", '')
+			CASE WHEN COALESCE(p."Item_Status_Child_Active_Status", '') = 'A' THEN 0 ELSE 1 END,
+			CASE WHEN COALESCE(p."Item_Primary_Location", '') = '10' THEN 0 ELSE 1 END,
+			COALESCE(p."Item_Primary_Location", ''),
+			COALESCE(p."Item_ID_Parent_SKU", '')
 	) = 1
 ),
 
@@ -57,15 +57,15 @@ CUSTOMER_MATCH AS (
 			ORDER BY
 				CASE
 					WHEN TRIM(COALESCE(o."Customer_End_User_Ship_To_Sequence_#", ''))
-					   = TRIM(COALESCE(c."Customer_Shipto_Num", '')) THEN 0
+					   = TRIM(COALESCE(c."Customer_ID_Ship-To", '')) THEN 0
 					ELSE 1
 				END,
-				CASE WHEN c."Customer_Shipto_Num" IS NULL THEN 1 ELSE 0 END,
-				COALESCE(c."Customer_Shipto_Num", '')
+				CASE WHEN c."Customer_ID_Ship-To" IS NULL THEN 1 ELSE 0 END,
+				COALESCE(c."Customer_ID_Ship-To", '')
 		) AS RN
 	FROM ORDERS_BASE o
 	LEFT JOIN SILVER_DATA.TCM_SILVER.CUSTOMER_MASTER_SILVER c
-		ON TRIM(COALESCE(o."Customer_ID_Sold-To", '')) = TRIM(COALESCE(c."Customer_Id", ''))
+		ON TRIM(COALESCE(o."Customer_ID_Sold-To", '')) = TRIM(COALESCE(c."Customer_ID_Sold-To", ''))
 ),
 
 SHIPMENT_BY_ORDER AS (
@@ -102,13 +102,13 @@ SELECT
 	o.*,
 
 	-- Product: all fields except duplicate item key
-	p.* EXCLUDE ("Item ID_Child SKU"),
+	p.* EXCLUDE ("Item_ID_Child_SKU"),
 
-	-- Inventory: all fields except duplicate item/location keys
-	i.* EXCLUDE ("Product_ID_SKU", "Location_ID"),
+	-- Inventory: all fields except duplicate item/location/tracking keys
+	i.* EXCLUDE ("Item_ID_Child_SKU", "Inventory_Location_ID", "Item_Bin_Tracking"),
 
-	-- Customer: all fields except duplicate customer name
-	c.* EXCLUDE (CM_ORDER_ID, CM_ORDER_LINE, RN, "Customer_Name"),
+	-- Customer: all fields except CTE metadata columns and duplicate Sold-To key
+	c.* EXCLUDE (CM_ORDER_ID, CM_ORDER_LINE, RN, "Customer_ID_Sold-To"),
 
 	-- Shipment aggregate by order
 	sb."Shipment_Count_Distinct",
@@ -120,10 +120,10 @@ SELECT
 
 FROM ORDERS_BASE o
 LEFT JOIN PRODUCT_DIM p
-	ON TRIM(COALESCE(o."Item ID_Child SKU", '')) = TRIM(COALESCE(p."Item ID_Child SKU", ''))
+	ON TRIM(COALESCE(o."Item ID_Child SKU", '')) = TRIM(COALESCE(p."Item_ID_Child_SKU", ''))
 LEFT JOIN INVENTORY_DIM i
-	ON TRIM(COALESCE(o."Item ID_Child SKU", '')) = TRIM(COALESCE(i."Product_ID_SKU", ''))
-   AND TRIM(COALESCE(o."Item Location", '')) = TRIM(COALESCE(i."Location_ID", ''))
+	ON TRIM(COALESCE(o."Item ID_Child SKU", '')) = TRIM(COALESCE(i."Item_ID_Child_SKU", ''))
+   AND TRIM(COALESCE(o."Item Location", '')) = TRIM(COALESCE(i."Inventory_Location_ID", ''))
 LEFT JOIN CUSTOMER_MATCH c
 	ON o."Order ID" = c.CM_ORDER_ID
 	   AND o."Order_Sequence Line Number" = c.CM_ORDER_LINE
