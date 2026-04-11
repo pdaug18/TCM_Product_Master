@@ -11,7 +11,7 @@ WITH ITMMAS_BASE AS (
     SELECT 
         ib.id_item,
         ib.key_alt AS "Item_ALT Key",
-        ib.code_cat_prdt AS "NSA_PRODUCT CATEGORY/VERTICAL",
+        ib.code_cat_prdt AS "NSA_PRODUCT CATEGORY/VERTICAL", --! review source: legacy PRDT CAT DESCR output removed
         ib.code_cat_cost AS "COST CATEGORY",
         ib.DESCR_1 || ' ' || ib.DESCR_2 AS "Item Description_Child SKU",
         ib.code_comm,
@@ -77,8 +77,8 @@ parent_attributes AS (
         MAX(CASE WHEN av.id_attr = 'Z_BRAND'      THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_BRAND",
         MAX(CASE WHEN av.id_attr = 'Z_GENDER'     THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_GENDER",
         MAX(CASE WHEN av.id_attr = 'PRODUCT TYPE' THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PRODUCT TYPE",
-        MAX(CASE WHEN av.id_attr = 'Z_CATEGORY'   THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_CATEGORY",
-        MAX(CASE WHEN av.id_attr = 'Z_VERTICAL'   THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_VERTICAL",
+        MAX(CASE WHEN av.id_attr = 'Z_CATEGORY'   THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_CATEGORY", --! review source: Item_Product_Category_Code output removed
+        MAX(CASE WHEN av.id_attr = 'Z_VERTICAL'   THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_VERTICAL", --! review source: Item_Vertical Code output removed
         MAX(CASE WHEN av.id_attr = 'BERRY'        THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) BERRY",
         MAX(CASE WHEN av.id_attr = 'CARE'         THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) CARE",
         MAX(CASE WHEN av.id_attr = 'HEAT TRANSFER'THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) HEAT TRANSFER",
@@ -132,8 +132,9 @@ vertical_calc AS (
 ),
 
 /* ========================================
-   CATEGORY — safe parent join via SKU.ID_PARENT
+   CATEGORY — removed from output (no Needed Master Field)
    ======================================== */
+/*
 category_calc AS (
     SELECT
         s.id_item,
@@ -174,6 +175,7 @@ category_calc AS (
            ON s."ATTR (SKU) ID_PARENT" = pa.ID_PARENT
     GROUP BY s.id_item
 ),
+*/
 
 /* ========================================
    PROP 65 — unchanged logic
@@ -244,7 +246,7 @@ Adjusted_Parent_Item_Status AS (
         WHERE b.CHILD_ITEM_STATUS = 'A' AND pd.PARENT_ITEM_STATUS = 'O'
     ) adj
     GROUP BY adj."Item ID_Child SKU" 
-),
+)
 
 /* ========================================
    ITEM PLANNER — single id_planner per id_item
@@ -253,40 +255,40 @@ Adjusted_Parent_Item_Status AS (
      2. Within same flag_source: location '10' (Cleveland HQ) first
      3. Then alphabetically by id_loc for any remaining ties
    ======================================== */
-item_planner AS (
-    SELECT
-        id_item,
-        id_loc           AS primary_mfg_loc,
-        id_planner
-    FROM (
-        SELECT
-            il.id_item,
-            il.id_loc,
-            il.id_planner,
-            ROW_NUMBER() OVER (
-                PARTITION BY il.id_item
-                ORDER BY
-                    CASE WHEN il.flag_source = 'M' THEN 0 ELSE 1 END,
-                    CASE WHEN il.id_loc = '10'     THEN 0 ELSE 1 END,
-                    il.id_loc
-            ) AS rn
-        FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC_Bronze" il
-        WHERE il.flag_source IN ('M', 'P')
-    ) ranked
-    WHERE rn = 1
-)
+--, item_planner AS (
+--     SELECT
+--         id_item,
+--         id_loc           AS primary_mfg_loc,
+--         id_planner
+--     FROM (
+--         SELECT
+--             il.id_item,
+--             il.id_loc,
+--             il.id_planner,
+--             ROW_NUMBER() OVER (
+--                 PARTITION BY il.id_item
+--                 ORDER BY
+--                     CASE WHEN il.flag_source = 'M' THEN 0 ELSE 1 END,
+--                     CASE WHEN il.id_loc = '10'     THEN 0 ELSE 1 END,
+--                     il.id_loc
+--             ) AS rn
+--         FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC_Bronze" il
+--         WHERE il.flag_source IN ('M', 'P')
+--     ) ranked
+--     WHERE rn = 1
+-- )
         
     SELECT
-        b.id_item                                   AS "Item ID_Child SKU",
-        UPPER(b."Item Description_Child SKU")       AS "Item Description_Child SKU",
-        b."COST CATEGORY"                           AS "Item_Cost Category ID",
-        UPPER(COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY'))                 AS "COST CAT DESCR",
-        UPPER(b."NSA_PRODUCT CATEGORY/VERTICAL")    AS "PRODUCT CATEGORY/VERTICAL",
-        UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) AS "PRDT CAT DESCR",
-        b."CODE_COMM"                               AS "COMMODITY CODE",
-        b."RATIO_STK_PUR",
+        b.id_item                                   AS "Item_ID_Child_SKU",
+        UPPER(b."Item Description_Child SKU")      AS "Item_Description_Child_SKU",
+        b."COST CATEGORY"                          AS "Item_Cost_Category_ID",
+        UPPER(COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY')) AS "Item_Cost_Category",
+        UPPER(b."NSA_PRODUCT CATEGORY/VERTICAL")   AS "Item_Vertical_Code",
+        -- UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) AS "PRDT CAT DESCR", --! review: no Needed Master Field mapping
+        b."CODE_COMM"                              AS "Item_Commodity_Code",
+        b."RATIO_STK_PUR"                          AS "Ratio_Purchase_to_Stock",
         UPPER(v.vertical)                           AS "Item_Vertical",
-        UPPER(c.category)                           AS "CATEGORY (Calc)",
+        -- UPPER(c.category)                           AS "CATEGORY (Calc)", --! review: no Needed Master Field mapping
         ic.COST_MATL_ACCUM_CRNT                     AS "Cost_Material_Accumulated_Current",
         ic.COST_MATL_ACCUM_STD                      AS "Cost_Material_Accumulated_Standard",
         ic.COST_FB_VA_CRNT                          AS "Cost_Freight_Current",
@@ -296,13 +298,13 @@ item_planner AS (
         ic.COST_LABOR_VA_CRNT                       AS "Cost_Labor_Current",
         ic.COST_LABOR_VA_STD                        AS "Cost_Labor_Standard",
         ic.COST_OUTP_VA_CRNT                        AS "Cost_Outside Service_Current",
-        ic.COST_USER_VA_CRNT                        AS "Cost_User Field_Current",
+        ic.COST_USER_VA_CRNT                        AS "Cost_User_Field_Current",
         ic.COST_OUTP_VA_STD                         AS "Cost_Outside Service_Standard",
-        ic.COST_USER_VA_STD                         AS "Cost_User Field_Standard",
+        ic.COST_USER_VA_STD                         AS "Cost_User_Field_Standard",
         ic.COST_TOTAL_ACCUM_CRNT                    AS "Cost_Total_Current",
         ic.COST_TOTAL_ACCUM_STD                     AS "Cost_Total_Standard",
-        ic.COST_VB_VA_CRNT                          AS "Cost_Variable Burden_Current",
-        ic.COST_VB_VA_STD                           AS "Cost_Variable Burden_Standard",
+        ic.COST_VB_VA_CRNT                          AS "Cost_Variable_Burden_Current",
+        ic.COST_VB_VA_STD                           AS "Cost_Variable_Burden_Standard",
         CASE 
             WHEN ic.COST_MATL_VA_CRNT IS NOT NULL THEN ic.COST_MATL_VA_CRNT 
             WHEN ic.COST_MATL_VA_STD IS NOT NULL THEN ic.COST_MATL_VA_STD
@@ -329,61 +331,61 @@ item_planner AS (
         b.code_um_price                             AS "Unit_of_Measure_Price",
         b.code_um_pur                               AS "Unit_of_Measure_Purchase",
         b.code_um_stk                               AS "Unit_of_Measure_Stock",
-        b.code_user_1_im                            AS "CODE_USER_1",
-        b.code_user_2_im                            AS "CODE_USER_2",
-        b.code_user_3_im                            AS "CODE_USER_3",
+        b.code_user_1_im                            AS "Item_Code_User_1",
+        b.code_user_2_im                            AS "Item_Code_User_2",
+        b.code_user_3_im                            AS "Item_Code_User_3",
         pv.date_quote                               AS "Date_Last_Vendor_Quote",
         pv.id_vnd_ordfm                             AS "Item_Primary_Vendor_Primary_Order_From_ID",
         pv.id_vnd_payto                             AS "Item_Primary_Vendor_Primary_Pay_To_ID",
         pv.id_item_vnd                              AS "Item_Primary_Vendor_Vendor_Item_ID",
         pv.code_um_vnd                              AS "Unit_of_Measure_Vendor_Code",
-        s."ATTR (SKU) ID_PARENT"                    AS "Item ID_Parent SKU",
+        s."ATTR (SKU) ID_PARENT"                   AS "Item_ID_Parent_SKU",
         UPPER(CASE
-            WHEN "PRDT CAT DESCR" ILIKE '%FABRIC%' AND pd."Item Description_Parent SKU" IS NULL
+            WHEN UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) ILIKE '%FABRIC%' AND pd."Item Description_Parent SKU" IS NULL
             THEN b."Item Description_Child SKU"
             ELSE COALESCE(pd."Item Description_Parent SKU", 'MISSING DESCRIPTION - UPDATE TCM')
-        END)                                        AS "Item Description_Parent SKU",
+        END)                                        AS "Item_Description_Parent_SKU",
 
-        UPPER(s."ATTR (SKU) CERT_NUM")              AS "Item_Certificate Number",
+        UPPER(s."ATTR (SKU) CERT_NUM")             AS "Item_Certificate_Number",
         UPPER(s."ATTR (SKU) COLOR")                 AS "Item_Color",
         UPPER(s."ATTR (SKU) SIZE")                  AS "Item_Size",
         UPPER(s."ATTR (SKU) LENGTH")                AS "Item_Length",
-        UPPER(s."ATTR (SKU) TARIFF_CODE")           AS "Item_Tariff Code",
-        UPPER(s."ATTR (SKU) UPC_CODE")              AS "Item_UPC Code",
+        UPPER(s."ATTR (SKU) TARIFF_CODE")          AS "Item_Tariff_Code",
+        UPPER(s."ATTR (SKU) UPC_CODE")             AS "Item_UPC_Code",
         UPPER(s."ATTR (SKU) PFAS")                  AS "Item_PFAS",
         UPPER(s."ATTR (SKU) CLASS")                 AS "Item_Class",
         UPPER(s."ATTR (SKU) PPC")                   AS "Item_PPC",
-        UPPER(s."ATTR (SKU) PRIOR COMMODITY")       AS "Item_Commodity Code Prior",
-        UPPER(s."ATTR (SKU) RBN_WC")                AS "Item_Work Center_Rubin",
-        UPPER(s."ATTR (SKU) REASON")                AS "Item Status_Obsolete Reason",
-        UPPER(s."ATTR (SKU) REPLACEMENT")           AS "Item_Replaced By",
-        UPPER(s."ATTR (SKU) REQUESTOR")             AS "Item Status_Obsolete Requestor",
+        UPPER(s."ATTR (SKU) PRIOR COMMODITY")      AS "Item_Commodity_Code_Prior",
+        UPPER(s."ATTR (SKU) RBN_WC")               AS "Item_Work_Center_Rubin",
+        UPPER(s."ATTR (SKU) REASON")               AS "Item_Status_Obsolete_Reason",
+        UPPER(s."ATTR (SKU) REPLACEMENT")          AS "Item_Replaced_By",
+        UPPER(s."ATTR (SKU) REQUESTOR")            AS "Item_Status_Obsolete_Requestor",
         
         UPPER(pa."ATTR (PAR) BERRY")                AS "Item_Berry",
         UPPER(pa."ATTR (PAR) CARE")                 AS "Item_Care",
-        UPPER(pa."ATTR (PAR) HEAT TRANSFER")        AS "Item_Heat Transfer",
+        UPPER(pa."ATTR (PAR) HEAT TRANSFER")       AS "Item_Heat_Transfer",
         UPPER(pa."ATTR (PAR) OTHER")                AS "Item_Other",
-        UPPER(pa."ATTR (PAR) PAD PRINT")            AS "Item_Pad Print",
-        UPPER(pa."ATTR (PAR) PRODUCT CAT")          AS "Item_Product Category",
-        UPPER(pa."ATTR (PAR) PRODUCT TYPE")         AS "Item_Product Type",
-        UPPER(pa."ATTR (PAR) TRACKING")             AS "Item_Bin Tracking",
+        UPPER(pa."ATTR (PAR) PAD PRINT")           AS "Item_Pad_Print",
+        UPPER(pa."ATTR (PAR) PRODUCT CAT")         AS "Item_Product_Category",
+        UPPER(pa."ATTR (PAR) PRODUCT TYPE")        AS "Item_Product_Type",
+        UPPER(pa."ATTR (PAR) TRACKING")            AS "Item_Bin_Tracking",
         UPPER(pa."ATTR (PAR) Z_BRAND")              AS "Item_Brand",
-        UPPER(pa."ATTR (PAR) Z_CATEGORY")           AS "Item_Product Category Code",
+        -- UPPER(pa."ATTR (PAR) Z_CATEGORY")           AS "Item_Product_Category_Code", --! review: no Needed Master Field mapping
         UPPER(pa."ATTR (PAR) Z_GENDER")             AS "Item_Gender",
-        UPPER(pa."ATTR (PAR) Z_VERTICAL")           AS "Item_Vertical Code",
-        UPPER(stkl.adv)                             AS "Item_Advertised Flag",
+        -- UPPER(pa."ATTR (PAR) Z_VERTICAL")           AS "Item_Vertical Code", --! review: no Needed Master Field mapping
+        UPPER(stkl.adv)                              AS "Item_Advertised_Flag",
         UPPER(p65.prop_65)                          AS "Item_Prop 65",
-        b."Item_ALT Key",
-        b.id_loc                                    AS "Item_Location ID",
-        UPPER(b.CHILD_ITEM_STATUS)                  AS "Item Status_Child Active Status",
-        UPPER(pd.PARENT_ITEM_STATUS)                AS "Item Status_Parent Active Status",
+        b."Item_ALT Key"                           AS "Item_ALT_Key",
+        b.id_loc                                    AS "Item_Primary_Location",
+        UPPER(b.CHILD_ITEM_STATUS)                  AS "Item_Status_Child_Active_Status",
+        UPPER(pd.PARENT_ITEM_STATUS)                AS "Item_Status_Parent_Active_Status",
         /* placeholder until sourced */
         /* Adjusted Parent Item Status via the CTE logic */
         UPPER(CASE 
             WHEN apit.cnt >= 1 THEN 'A'
             ELSE pd.PARENT_ITEM_STATUS
-        END)                                        AS "Adj_Parent_Item_Status",
-        ip.id_planner                               AS "ID_PLANNER"
+        END)                                        AS "Item_Status_Parent_Active_Status_Adjusted"
+        -- ip.id_planner                               AS "Item_Planned_Classification"
         -- ip.PRIMARY_LOC_FLAG                         AS "PRIMARY_LOC_FLAG"
 
     FROM ITMMAS_BASE b
@@ -395,10 +397,10 @@ item_planner AS (
     LEFT JOIN sku_attributes     s   ON b.id_item = s.id_item
     LEFT JOIN parent_attributes  pa  ON s."ATTR (SKU) ID_PARENT" = pa.ID_PARENT
     LEFT JOIN parent_descriptions pd ON s."ATTR (SKU) ID_PARENT" = pd.id_item
-    LEFT JOIN category_calc      c   ON b.id_item = c.id_item
+    -- LEFT JOIN category_calc      c   ON b.id_item = c.id_item --! review: CATEGORY (Calc) removed from output
     LEFT JOIN vertical_calc      v   ON b.id_item = v.id_item
     LEFT JOIN prop_65_calc       p65 ON s."ATTR (SKU) ID_PARENT" = p65.id_item_par
     LEFT JOIN primary_vendor     pv  ON b.id_item = pv.id_item
     LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Item ID_Child SKU"
-    LEFT JOIN item_planner        ip  ON b.id_item = ip.id_item
+    -- LEFT JOIN item_planner        ip  ON b.id_item = ip.id_item  --! Don't need; location-specific -> already included in item_inventory_master if needed for downstream use cases. Can revisit if we want to add a single "primary" planner and/or location to the product master.
     WHERE b.code_comm <> 'PAR';
