@@ -73,7 +73,7 @@ sku_attributes AS (
 parent_attributes AS (
     SELECT
         av.id_item AS ID_PARENT,
-        MAX(CASE WHEN av.id_attr = 'PRODUCT CAT'  THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PRODUCT CAT",
+        -- MAX(CASE WHEN av.id_attr = 'PRODUCT CAT'  THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PRODUCT CAT",
         MAX(CASE WHEN av.id_attr = 'Z_BRAND'      THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_BRAND",
         MAX(CASE WHEN av.id_attr = 'Z_GENDER'     THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_GENDER",
         MAX(CASE WHEN av.id_attr = 'PRODUCT LINE' THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PRODUCT LINE",    --+ 4/13/2026 per Denise email - added PRODUCT LINE as requested field
@@ -290,7 +290,7 @@ Adjusted_Parent_Item_Status AS (
         b."Item_Commodity_Code",
         b."Ratio_Purchase_to_Stock",
         -- UPPER(v.vertical)                           AS "Item_Vertical",  --! Removed as Vertical is referenced from table_code_cat_prdt from itmmas_base and not from attributes.
-        UPPER(c.category)                           AS "Item_Product Category", --! review: no Needed Master Field mapping
+        UPPER(c.category)                           AS "Item_Product_Category", --! review: no Needed Master Field mapping
         ic.COST_MATL_ACCUM_CRNT                     AS "Cost_Material_Accumulated_Current",
         ic.COST_MATL_ACCUM_STD                      AS "Cost_Material_Accumulated_Standard",
         ic.COST_FB_VA_CRNT                          AS "Cost_Freight_Current",
@@ -299,9 +299,9 @@ Adjusted_Parent_Item_Status AS (
         ic.COST_MATL_VA_STD                         AS "Cost_Material_Standard",
         ic.COST_LABOR_VA_CRNT                       AS "Cost_Labor_Current",
         ic.COST_LABOR_VA_STD                        AS "Cost_Labor_Standard",
-        ic.COST_OUTP_VA_CRNT                        AS "Cost_Outside Service_Current",
+        ic.COST_OUTP_VA_CRNT                        AS "Cost_Outside_Service_Current",
         ic.COST_USER_VA_CRNT                        AS "Cost_User_Field_Current",
-        ic.COST_OUTP_VA_STD                         AS "Cost_Outside Service_Standard",
+        ic.COST_OUTP_VA_STD                         AS "Cost_Outside_Service_Standard",
         ic.COST_USER_VA_STD                         AS "Cost_User_Field_Standard",
         ic.COST_TOTAL_ACCUM_CRNT                    AS "Cost_Total_Current",
         ic.COST_TOTAL_ACCUM_STD                     AS "Cost_Total_Standard",
@@ -368,15 +368,17 @@ Adjusted_Parent_Item_Status AS (
         UPPER(pa."ATTR (PAR) HEAT TRANSFER")       AS "Item_Heat_Transfer",
         UPPER(pa."ATTR (PAR) OTHER")                AS "Item_Other",
         UPPER(pa."ATTR (PAR) PAD PRINT")           AS "Item_Pad_Print",
-        UPPER(pa."ATTR (PAR) PRODUCT CAT")         AS "Item_Product_Category",
+        -- UPPER(pa."ATTR (PAR) PRODUCT CAT")         AS "Item_Product_Category",
         UPPER(pa."ATTR (PAR) PRODUCT TYPE")        AS "Item_Product_Type",
+        UPPER(pa."ATTR (PAR) PRODUCT LINE")        AS "Item_Product_Line",
+        UPPER(pa."ATTR (PAR) PRODUCT_APP")        AS "Item_Product_Application",
         UPPER(pa."ATTR (PAR) TRACKING")            AS "Item_Bin_Tracking",
         UPPER(pa."ATTR (PAR) Z_BRAND")              AS "Item_Brand",
-        -- UPPER(pa."ATTR (PAR) Z_CATEGORY")           AS "Item_Product_Category_Code", --! review: no Needed Master Field mapping
+        UPPER(pa."ATTR (PAR) Z_CATEGORY")           AS "Item_Product_Category_Code", --! review: no Needed Master Field mapping
         UPPER(pa."ATTR (PAR) Z_GENDER")             AS "Item_Gender",
         -- UPPER(pa."ATTR (PAR) Z_VERTICAL")           AS "Item_Vertical Code", --! review: no Needed Master Field mapping
         UPPER(stkl.adv)                              AS "Item_Advertised_Flag",
-        UPPER(p65.prop_65)                          AS "Item_Prop 65",
+        UPPER(p65.prop_65)                          AS "Item_Prop_65",
         b."Item_ALT Key"                           AS "Item_ALT_Key",
         b.id_loc                                    AS "Item_Primary_Location",
         UPPER(b.CHILD_ITEM_STATUS)                  AS "Item_Status_Child_Active_Status",

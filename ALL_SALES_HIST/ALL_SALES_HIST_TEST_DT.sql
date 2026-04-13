@@ -62,44 +62,44 @@ BASE AS (
         sls."Ship to Country" AS "Ship to Country",
         sls."Sales Rep ID" AS "TCM Sales Rep ID",
         sls."Product ID/SKU" AS "Product ID/SKU",
-        mpt."Item ID_Child SKU",
-        mpt."Item Description_Child SKU",
-        mpt."Item_Cost Category ID",
-        COALESCE(mpt."COST CAT DESCR", 'INVALID COST CATEGORY') AS "COST CAT DESCR",
-        mpt."PRODUCT CATEGORY/VERTICAL",
-        COALESCE(mpt."PRDT CAT DESCR", 'INVALID PRODUCT CATEGORY') AS "PRDT CAT DESCR",
+        mpt."Item_ID_Child_SKU",
+        mpt."Item_Description_Child_SKU",
+        mpt."Item_Cost_Category_ID",
+        mpt."Item_Cost_Category",
+        -- mpt."PRODUCT_VERTICAL",
+        -- COALESCE(mpt."PRDT CAT DESCR", 'INVALID PRODUCT CATEGORY') AS "PRDT CAT DESCR",
         sls."TCM Historical Vertical",
         mpt."Item_Vertical",
-        mpt."CATEGORY (Calc)",
-        mpt."Item ID_Parent SKU",
-        COALESCE(mpt."Item Description_Parent SKU", 'MISSING DESCRIPTION - UPDATE TCM') AS "PARENT DESCRIPTION",
-        mpt."Item_Certificate Number",
+        -- mpt."Item_Product_Category",
+        mpt."Item_ID_Parent_SKU",
+        COALESCE(mpt."Item_Description_Parent_SKU", 'MISSING DESCRIPTION - UPDATE TCM') AS "PARENT DESCRIPTION",
+        mpt."Item_Certificate_Number",
         mpt."Item_Color",
         mpt."Item_Size",
         mpt."Item_Length",
-        mpt."Item_Tariff Code",
-        mpt."Item_UPC Code",
+        mpt."Item_Tariff_Code",
+        mpt."Item_UPC_Code",
         mpt."Item_PFAS",
         mpt."Item_Class",
         mpt."Item_PPC",
-        mpt."Item_Commodity Code Prior",
-        mpt."Item_Work Center_Rubin",
-        mpt."Item Status_Obsolete Reason",
-        mpt."Item_Replaced By",
-        mpt."Item Status_Obsolete Requestor",
+        mpt."Item_Commodity_Code_Prior",
+        mpt."Item_Work_Center_Rubin",
+        mpt."Item_Status_Obsolete_Reason",
+        mpt."Item_Replaced_By",
+        mpt."Item_Status_Obsolete_Requestor",
         mpt."Item_Berry",
         mpt."Item_Care",
-        mpt."Item_Heat Transfer",
+        mpt."Item_Heat_Transfer",
         mpt."Item_Other",
-        mpt."Item_Pad Print",
-        mpt."Item_Product Category",
-        mpt."Item_Product Type",
-        mpt."Item_Bin Tracking",
+        mpt."Item_Pad_Print",
+        mpt."Item_Product_Category",
+        mpt."Item_Product_Type",
+        mpt."Item_Bin_Tracking",
         mpt."Item_Brand",
-        mpt."Item_Product Category Code",
+        mpt."Item_Product_Category_Code",
         mpt."Item_Gender",
-        mpt."Item_Vertical Code",
-        mpt."Item_Advertised Flag",
+        -- mpt."Item_Vertical_Code",
+        mpt."Item_Advertised_Flag",
         mpt."Cost_Material_Accumulated_Current",
         mpt."Cost_Material_Accumulated_Standard",
         mpt."Cost_Freight_Current",
@@ -108,24 +108,24 @@ BASE AS (
         mpt."Cost_Labor_Current",
         mpt."Cost_Material_Standard",
         mpt."Cost_Labor_Standard",
-        mpt."Cost_Outside Service_Current",
-        mpt."Cost_User Field_Current",
-        mpt."Cost_Outside Service_Standard",
-        mpt."Cost_User Field_Standard",
+        mpt."Cost_Outside_Service_Current",
+        mpt."Cost_User_Field_Current",
+        mpt."Cost_Outside_Service_Standard",
+        mpt."Cost_User_Field_Standard",
         mpt."Cost_Total_Current",
         mpt."Cost_Total_Standard",
-        mpt."Cost_Variable Burden_Current",
-        mpt."Cost_Variable Burden_Standard",
+        mpt."Cost_Variable_Burden_Current",
+        mpt."Cost_Variable_Burden_Standard",
         mpt."Cost_Material_Current_Calculated",
         mpt."Cost_Labor_Current_Calculated",
         mpt."Cost_Total_Current_Calculated",
-        il.id_planner AS "Item_Planned Classification",
-        mpt."Item_Prop 65",
+        il.id_planner AS "Item_Planned_Classification",
+        mpt."Item_Prop_65",
         sls."INVOICE DATE" AS "INVOICE DATE",
-        mpt."Item_ALT Key",
-        mpt."Item Status_Child Active Status",
-        mpt."Item Status_Parent Active Status",
-        r.level_rop AS "Item Inventory_Reorder Point",
+        mpt."Item_ALT_Key",
+        mpt."Item_Status_Child_Active_Status",
+        mpt."Item_Status_Parent_Active_Status",
+        r.level_rop AS "Item_Inventory_Reorder_Point",
         sls."LineNumber" AS "Sales Transaction Line ID",
         sls."Promise Date" AS "Promise Date",
 
@@ -169,7 +169,7 @@ BASE AS (
 
     FROM GOLD_DATA.TCM_GOLD.BOOKINGS_INVOICE_REPORTING sls
     LEFT JOIN SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE mpt
-        ON sls."Product ID/SKU" = mpt."Item ID_Child SKU"
+        ON sls."Product ID/SKU" = mpt."Item_ID_Child_SKU"
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_LOC_Bronze" tl
         ON sls.id_loc = tl.id_loc
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_SLSREP_Bronze" sr
@@ -211,38 +211,38 @@ ENRICHED AS (
 
         CASE
           WHEN b."Item_Stock Flag" = 'S'
-           AND b."Item_Advertised Flag" = 'Y'
-           AND b."Item Inventory_Reorder Point" > 1
+           AND b."Item_Advertised_Flag" = 'Y'
+           AND b."Item_Inventory_Reorder_Point" > 1
            AND (b."Working Days Promise Minus Order" <= 6 OR b."Working Days Invoice Minus Order" <= 2)
             THEN 'Advertised In-Stock'
 
           WHEN (
             (b."Item_Stock Flag" = 'S'
-             AND b."Item_Advertised Flag" = 'Y'
-             AND b."Item Inventory_Reorder Point" > 1)
-            OR b."Item_Planned Classification" = 'AS'
+             AND b."Item_Advertised_Flag" = 'Y'
+             AND b."Item_Inventory_Reorder_Point" > 1)
+            OR b."Item_Planned_Classification" = 'AS'
            )
            AND (b."Working Days Promise Minus Order" > 6 AND b."Working Days Invoice Minus Order" > 2)
             THEN 'Advertised Out-of-Stock'
 
-          WHEN b."Item_Planned Classification" = 'AS'
+          WHEN b."Item_Planned_Classification" = 'AS'
            AND (b."Working Days Promise Minus Order" <= 6 OR b."Working Days Invoice Minus Order" <= 2)
             THEN 'In-Stock Altered Stock'
 
           WHEN b."Item_Stock Flag" = 'S'
-           AND b."Item Inventory_Reorder Point" = 1
+           AND b."Item_Inventory_Reorder_Point" = 1
             THEN 'Standard'
 
-          WHEN b."Item_Planned Classification" = 'KT'
+          WHEN b."Item_Planned_Classification" = 'KT'
             THEN 'Kits'
 
           WHEN b."Item_Stock Flag" = 'N'
-           AND b."Item_Planned Classification" NOT IN ('AS','KT')
+           AND b."Item_Planned_Classification" NOT IN ('AS','KT')
             THEN 'Made To Order'
 
          WHEN (
-               b."Item_Product Category Code" IN ('06', '26', '60')
-               OR b."Item_Planned Classification" = 'RM'
+               b."Item_Product_Category_Code" IN ('06', '26', '60')
+               OR b."Item_Planned_Classification" = 'RM'
               )
     
            THEN 'Fabrics and Raw Materials'
@@ -284,44 +284,44 @@ SELECT
     e."Ship to #",
     e."Ship to Country",
     e."TCM Sales Rep ID",
-    e."Item ID_Child SKU" AS "Item ID_Child SKU",
-    e."Item Description_Child SKU" AS "Item Description_Child SKU",
-    e."Item_Cost Category ID",
-    e."Item_Cost Category",
-    e."Item_Vertical_Code",
-    e."PRDT CAT DESCR",
+    e."Item_ID_Child_SKU" AS "Item_ID_Child_SKU",
+    e."Item_Description_Child_SKU" AS "Item_Description_Child_SKU",
+    e."Item_Cost_Category_ID",
+    e."Item_Cost_Category",
+    -- e."Item_Vertical_Code",
+    -- e."PRDT CAT DESCR", -- removed from MASTER_PRODUCT_TABLE
     e."TCM Historical Vertical",
     e."Item_Vertical" AS "Item_Vertical",
-    e."CATEGORY (Calc)",
-    e."Item ID_Parent SKU" AS "Item ID_Parent SKU",
-    e."PARENT DESCRIPTION" AS "Item Description_Parent SKU",
-    e."Item_Certificate Number" AS "Item_Certificate Number",
+    -- e."CATEGORY (Calc)", -- removed from MASTER_PRODUCT_TABLE
+    e."Item_ID_Parent_SKU" AS "Item_ID_Parent_SKU",
+    e."PARENT DESCRIPTION" AS "Item_Description_Parent_SKU",
+    e."Item_Certificate_Number" AS "Item_Certificate_Number",
     e."Item_Color" AS "Item_Color",
     e."Item_Size" AS "Item_Size",
     e."Item_Length" AS "Item_Length",
-    e."Item_Tariff Code" AS "Item_Tariff Code",
-    e."Item_UPC Code" AS "Item_UPC Code",
+    e."Item_Tariff_Code" AS "Item_Tariff_Code",
+    e."Item_UPC_Code" AS "Item_UPC_Code",
     e."Item_PFAS" AS "Item_PFAS",
     e."Item_Class" AS "Item_Class",
     e."Item_PPC" AS "Item_PPC",
-    e."Item_Commodity Code Prior" AS "Item_Commodity Code Prior",
-    e."Item_Work Center_Rubin" AS "Item_Work Center_Rubin",
-    e."Item Status_Obsolete Reason" AS "Item Status_Obsolete Reason",
-    e."Item_Replaced By" AS "Item_Replaced By",
-    e."Item Status_Obsolete Requestor" AS "Item Status_Obsolete Requestor",
+    e."Item_Commodity_Code_Prior" AS "Item_Commodity_Code_Prior",
+    e."Item_Work_Center_Rubin" AS "Item_Work_Center_Rubin",
+    e."Item_Status_Obsolete_Reason" AS "Item_Status_Obsolete_Reason",
+    e."Item_Replaced_By" AS "Item_Replaced_By",
+    e."Item_Status_Obsolete_Requestor" AS "Item_Status_Obsolete_Requestor",
     e."Item_Berry" AS "Item_Berry",
     e."Item_Care" AS "Item_Care",
-    e."Item_Heat Transfer" AS "Item_Heat Transfer",
+    e."Item_Heat_Transfer" AS "Item_Heat_Transfer",
     e."Item_Other" AS "Item_Other",
-    e."Item_Pad Print" AS "Item_Pad Print",
-    e."Item_Product Category",
-    e."Item_Product Type" AS "Item_Product Type",
-    e."Item_Bin Tracking" AS "Item_Bin Tracking",
+    e."Item_Pad_Print" AS "Item_Pad_Print",
+    e."Item_Product_Category",
+    e."Item_Product_Type" AS "Item_Product_Type",
+    e."Item_Bin_Tracking" AS "Item_Bin_Tracking",
     e."Item_Brand" AS "Item_Brand",
-    e."Item_Product Category Code",
+    e."Item_Product_Category_Code",
     e."Item_Gender" AS "Item_Gender",
-    e."Item_Vertical Code",
-    e."Item_Advertised Flag" AS "Item_Advertised Flag",
+    -- e."Item_Vertical_Code", -- duplicate of selected Item_Vertical_Code above
+    e."Item_Advertised_Flag" AS "Item_Advertised_Flag",
     e."Cost_Material_Accumulated_Current",
     e."Cost_Material_Accumulated_Standard",
     e."Cost_Freight_Current",
@@ -330,24 +330,24 @@ SELECT
     e."Cost_Labor_Current",
     e."Cost_Material_Standard",
     e."Cost_Labor_Standard",
-    e."Cost_Outside Service_Current" AS "Cost_Outside Service_Current",
-    e."Cost_User Field_Current" AS "Cost_User Field_Current",
-    e."Cost_Outside Service_Standard" AS "Cost_Outside Service_Standard",
-    e."Cost_User Field_Standard" AS "Cost_User Field_Standard",
+    e."Cost_Outside_Service_Current" AS "Cost_Outside_Service_Current",
+    e."Cost_User_Field_Current" AS "Cost_User_Field_Current",
+    e."Cost_Outside_Service_Standard" AS "Cost_Outside_Service_Standard",
+    e."Cost_User_Field_Standard" AS "Cost_User_Field_Standard",
     e."Cost_Total_Current",
     e."Cost_Total_Standard",
-    e."Cost_Variable Burden_Current" AS "Cost_Variable Burden_Current",
-    e."Cost_Variable Burden_Standard" AS "Cost_Variable Burden_Standard",
+    e."Cost_Variable_Burden_Current" AS "Cost_Variable_Burden_Current",
+    e."Cost_Variable_Burden_Standard" AS "Cost_Variable_Burden_Standard",
     e."Cost_Material_Current_Calculated",
     e."Cost_Labor_Current_Calculated",
     e."Cost_Total_Current_Calculated",
-    e."Item_Planned Classification" AS "Item_Planned Classification",
-    e."Item_Prop 65" AS "Item_Prop 65",
+    e."Item_Planned_Classification" AS "Item_Planned_Classification",
+    e."Item_Prop_65" AS "Item_Prop_65",
     e."INVOICE DATE",
-    e."Item_ALT Key" AS "Item_ALT Key",
-    e."Item Status_Child Active Status" AS "Item Status_Child Active Status",
-    e."Item Status_Parent Active Status" AS "Item Status_Parent Active Status",
-    e."Item Inventory_Reorder Point" AS "Item Inventory_Reorder Point",
+    e."Item_ALT_Key" AS "Item_ALT_Key",
+    e."Item_Status_Child_Active_Status" AS "Item_Status_Child_Active_Status",
+    e."Item_Status_Parent_Active_Status" AS "Item_Status_Parent_Active_Status",
+    e."Item_Inventory_Reorder_Point" AS "Item_Inventory_Reorder_Point",
     e."Sales Transaction Line ID",
     e."Promise Date",
     e."Working Days Invoice Minus Order",
@@ -487,7 +487,8 @@ SELECT
 
 FROM ENRICHED e
 LEFT JOIN KIT_STOCK_SUMMARY kss
-  ON LTRIM(RTRIM(e."Item ID_Child SKU")) = LTRIM(RTRIM(kss.id_item_par))
+  ON LTRIM(RTRIM(e."Item_ID_Child_SKU")) = LTRIM(RTRIM(kss.id_item_par))
 ;
+
 
 
