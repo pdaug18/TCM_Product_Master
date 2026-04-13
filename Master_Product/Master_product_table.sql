@@ -11,13 +11,13 @@ WITH ITMMAS_BASE AS (
     SELECT 
         ib.id_item,
         ib.key_alt AS "Item_ALT Key",
-        ib.code_cat_prdt AS "NSA_PRODUCT CATEGORY/VERTICAL", --! review source: legacy PRDT CAT DESCR output removed
-        ib.code_cat_cost AS "COST CATEGORY",
-        ib.DESCR_1 || ' ' || ib.DESCR_2 AS "Item Description_Child SKU",
-        ib.code_comm,
+        ib.code_cat_prdt AS "NSA_PRODUCT_VERTICAL", --! review source: legacy PRDT CAT DESCR output removed. Based on Denise's email - this is VERTICAL, not category. Category comes from IM_CMCD_ATTR_VALUE with attr name 'Z_CATEGORY'.
+        ib.code_cat_cost AS "COST_CATEGORY",
+        ib.DESCR_1 || ' ' || ib.DESCR_2 AS "Item_Description_Child_SKU",
+        ib.code_comm AS "Item_Commodity_Code",
         ib.id_loc,
         ib.FLAG_STAT_ITEM AS CHILD_ITEM_STATUS,
-        ib."RATIO_STK_PUR",
+        ib."RATIO_STK_PUR"AS "Ratio_Purchase_to_Stock",
         ib.type_cost,
         ib.wgt_item,
         ib.ratio_stk_price,
@@ -76,15 +76,19 @@ parent_attributes AS (
         MAX(CASE WHEN av.id_attr = 'PRODUCT CAT'  THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PRODUCT CAT",
         MAX(CASE WHEN av.id_attr = 'Z_BRAND'      THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_BRAND",
         MAX(CASE WHEN av.id_attr = 'Z_GENDER'     THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_GENDER",
+        MAX(CASE WHEN av.id_attr = 'PRODUCT LINE' THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PRODUCT LINE",    --+ 4/13/2026 per Denise email - added PRODUCT LINE as requested field
+        MAX(CASE WHEN av.id_attr = 'PRODUCT_APP'  THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PRODUCT_APP",     --+ 4/13/2026 per Denise email - added PRODUCT APP as requested field
         MAX(CASE WHEN av.id_attr = 'PRODUCT TYPE' THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PRODUCT TYPE",
-        MAX(CASE WHEN av.id_attr = 'Z_CATEGORY'   THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_CATEGORY", --! review source: Item_Product_Category_Code output removed
-        MAX(CASE WHEN av.id_attr = 'Z_VERTICAL'   THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_VERTICAL", --! review source: Item_Vertical Code output removed
+        MAX(CASE WHEN av.id_attr = 'Z_CATEGORY'   THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_CATEGORY",      -- Item_Product Category
+        -- MAX(CASE WHEN av.id_attr = 'Z_VERTICAL'   THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) Z_VERTICAL", --! review source: Item_Vertical Code output removed
         MAX(CASE WHEN av.id_attr = 'BERRY'        THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) BERRY",
         MAX(CASE WHEN av.id_attr = 'CARE'         THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) CARE",
         MAX(CASE WHEN av.id_attr = 'HEAT TRANSFER'THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) HEAT TRANSFER",
         MAX(CASE WHEN av.id_attr = 'OTHER'        THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) OTHER",
         MAX(CASE WHEN av.id_attr = 'PAD PRINT'    THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) PAD PRINT",
-        MAX(CASE WHEN av.id_attr = 'TRACKING'     THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) TRACKING"
+        MAX(CASE WHEN av.id_attr = 'TRACKING'     THEN av.val_string_attr ELSE '' END) AS "ATTR (PAR) TRACKING",
+    
+    -- FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
     FROM BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Bronze" av
     -- FROM BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Dynamic" av
     WHERE av.code_comm = 'PAR'
@@ -99,7 +103,7 @@ parent_descriptions AS (
     SELECT
         ib.id_item,
         ib.FLAG_STAT_ITEM AS PARENT_ITEM_STATUS,
-        LISTAGG(id.descr_addl, '') WITHIN GROUP (ORDER BY SEQ_DESCR) AS "Item Description_Parent SKU"
+        LISTAGG(id.descr_addl, '') WITHIN GROUP (ORDER BY SEQ_DESCR) AS "Item_Description_Parent_SKU"
     -- FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
     FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Dynamic" ib
     LEFT JOIN (select * from BRONZE_DATA.TCM_BRONZE."ITMMAS_DESCR_Bronze"
@@ -113,61 +117,60 @@ parent_descriptions AS (
 /* ========================================
    VERTICAL — safe parent join via SKU.ID_PARENT
    ======================================== */
-vertical_calc AS (
-    SELECT
-        s.id_item,
-        CASE
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'AF' THEN 'ARC FLASH PPE'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('CT','IS') OR COALESCE(pa."ATTR (PAR) Z_VERTICAL", '') = '' THEN 'INDUSTRIAL PPE'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'FR' THEN 'FR CLOTHING'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'GV' THEN 'MILITARY'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'TH' THEN 'THERMAL'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'UL' AND pa."ATTR (PAR) Z_CATEGORY" = 'AD' THEN 'AD SPECIALTY'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'UL' AND pa."ATTR (PAR) Z_CATEGORY" = 'USPS' THEN 'USPS'
-            ELSE 'INDUSTRIAL PPE'
-        END AS vertical
-    FROM sku_attributes s
-    LEFT JOIN parent_attributes pa
-           ON s."ATTR (SKU) ID_PARENT" = pa.ID_PARENT
-),
+-- vertical_calc AS (
+--     SELECT
+--         s.id_item,
+--         CASE
+--             WHEN pa."ATTR (PAR) Z_VERTICAL" = 'AF' THEN 'ARC FLASH PPE'
+--             WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('CT','IS') OR COALESCE(pa."ATTR (PAR) Z_VERTICAL", '') = '' THEN 'INDUSTRIAL PPE'
+--             WHEN pa."ATTR (PAR) Z_VERTICAL" = 'FR' THEN 'FR CLOTHING'
+--             WHEN pa."ATTR (PAR) Z_VERTICAL" = 'GV' THEN 'MILITARY'
+--             WHEN pa."ATTR (PAR) Z_VERTICAL" = 'TH' THEN 'THERMAL'
+--             WHEN pa."ATTR (PAR) Z_VERTICAL" = 'UL' AND pa."ATTR (PAR) Z_CATEGORY" = 'AD' THEN 'AD SPECIALTY'
+--             WHEN pa."ATTR (PAR) Z_VERTICAL" = 'UL' AND pa."ATTR (PAR) Z_CATEGORY" = 'USPS' THEN 'USPS'
+--             ELSE 'INDUSTRIAL PPE'
+--         END AS vertical
+--     FROM sku_attributes s
+--     LEFT JOIN parent_attributes pa
+--            ON s."ATTR (SKU) ID_PARENT" = pa.ID_PARENT
+-- ),
 
 /* ========================================
    CATEGORY — removed from output (no Needed Master Field)
    ======================================== */
-/*
 category_calc AS (
     SELECT
         s.id_item,
         MAX(CASE
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'AF' AND pa."ATTR (PAR) Z_CATEGORY" IN ('CL','KT') THEN 'CLOTHING & KITS'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'AF' AND pa."ATTR (PAR) Z_CATEGORY" IN ('ES') THEN 'ELECTRICAL SAFETY'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'AF' AND pa."ATTR (PAR) Z_CATEGORY" IN ('FSB') THEN 'FACESHIELDS & BALACLAVAS'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'AF' AND pa."ATTR (PAR) Z_CATEGORY" IN ('LP') THEN 'KUNZ LEATHER PROTECTORS'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'AF' AND pa."ATTR (PAR) Z_CATEGORY" IN ('VG') THEN 'VOLTAGE RATED GLOVES'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'AF' AND pa."ATTR (PAR) Z_CATEGORY" IN ('WG') THEN 'KUNZ WORK GLOVES'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'FR' AND pa."ATTR (PAR) Z_CATEGORY" IN ('AC') THEN 'FR ACCESSORIES'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'FR' AND pa."ATTR (PAR) Z_CATEGORY" IN ('HV') THEN 'FR HI-VIS'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'FR' AND pa."ATTR (PAR) Z_CATEGORY" IN ('IDC') THEN 'FR INFECTIOUS DISEASE CONTROL'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'FR' AND pa."ATTR (PAR) Z_CATEGORY" IN ('IND') THEN 'INDUSTRIAL FR UNIFORMS'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'FR' AND pa."ATTR (PAR) Z_CATEGORY" IN ('MSC') THEN 'MISC'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'FR' AND pa."ATTR (PAR) Z_CATEGORY" IN ('FABRC') THEN 'FR FABRIC'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'FR' AND pa."ATTR (PAR) Z_CATEGORY" IN ('RW') THEN 'FR RAINWEAR'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'FR' AND pa."ATTR (PAR) Z_CATEGORY" IN ('WW') THEN 'FR WORK WEAR'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'GV' AND pa."ATTR (PAR) Z_CATEGORY" IN ('FRML') THEN 'FR MILITARY'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'GV' AND pa."ATTR (PAR) Z_CATEGORY" IN ('MISC') THEN 'GOVERNMENT (NON-MILITARY)'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'GV' AND pa."ATTR (PAR) Z_CATEGORY" IN ('LE') THEN 'LAW ENFORCEMENT'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'GV' AND pa."ATTR (PAR) Z_CATEGORY" IN ('FABRC') THEN 'FR MILITARY FABRIC'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" = 'GV' AND pa."ATTR (PAR) Z_CATEGORY" IN ('WT') THEN 'WILD THINGS'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('CT','IS') AND pa."ATTR (PAR) Z_CATEGORY" IN ('CR') THEN 'CRYOGENIC PPE'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('CT','IS') AND pa."ATTR (PAR) Z_CATEGORY" IN ('IDC') THEN 'INFECTIOUS DISEASE CONTROL'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('CT','IS') AND pa."ATTR (PAR) Z_CATEGORY" IN ('CP','HV','MISC') THEN 'MISC'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('CT','IS') AND pa."ATTR (PAR) Z_CATEGORY" IN ('MC') THEN 'MECHANICAL/CUT PROTECTION'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('TH') AND pa."ATTR (PAR) Z_CATEGORY" IN ('CL') THEN 'CLOTHING'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('TH') AND pa."ATTR (PAR) Z_CATEGORY" IN ('FSB') THEN 'FACESHIELDS & BALACLAVAS'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('TH') AND pa."ATTR (PAR) Z_CATEGORY" IN ('HP') THEN 'HAND PROTECTION'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('TH') AND pa."ATTR (PAR) Z_CATEGORY" IN ('MAC') THEN 'MACHINERY PROTECTION'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('TH') AND pa."ATTR (PAR) Z_CATEGORY" IN ('FABRC') THEN 'THERMAL FABRIC'
-            WHEN pa."ATTR (PAR) Z_VERTICAL" IN ('TH') AND pa."ATTR (PAR) Z_CATEGORY" IN ('MSC') THEN 'MISC/THERMAL PROTECTION'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('CL','KT')  THEN 'CLOTHING & KITS'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('ES')       THEN 'ELECTRICAL SAFETY'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('FSB')      THEN 'FACESHIELDS & BALACLAVAS'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('LP')       THEN 'KUNZ LEATHER PROTECTORS'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('VG')       THEN 'VOLTAGE RATED GLOVES'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('WG')       THEN 'KUNZ WORK GLOVES'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('AC')       THEN 'FR ACCESSORIES'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('HV')       THEN 'FR HI-VIS'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('IDC')      THEN 'FR INFECTIOUS DISEASE CONTROL'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('IND')      THEN 'INDUSTRIAL FR UNIFORMS'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('MSC')      THEN 'MISC'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('FABRC')    THEN 'FR FABRIC'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('RW')       THEN 'FR RAINWEAR'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('WW')       THEN 'FR WORK WEAR'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('FRML')     THEN 'FR MILITARY'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('MISC')     THEN 'GOVERNMENT (NON-MILITARY)'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('LE')       THEN 'LAW ENFORCEMENT'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('FABRC')    THEN 'FR MILITARY FABRIC'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('WT')       THEN 'WILD THINGS'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('CR')       THEN 'CRYOGENIC PPE'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('IDC')      THEN 'INFECTIOUS DISEASE CONTROL'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('CP','HV','MISC') THEN 'MISC'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('MC')       THEN 'MECHANICAL/CUT PROTECTION'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('CL')       THEN 'CLOTHING'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('FSB')      THEN 'FACESHIELDS & BALACLAVAS'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('HP')       THEN 'HAND PROTECTION'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('MAC')      THEN 'MACHINERY PROTECTION'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('FABRC')    THEN 'THERMAL FABRIC'
+            WHEN pa."ATTR (PAR) Z_CATEGORY" IN ('MSC')      THEN 'MISC/THERMAL PROTECTION'
             ELSE '#NOT CATEGORIZED'
         END) AS category
     FROM sku_attributes s
@@ -175,7 +178,6 @@ category_calc AS (
            ON s."ATTR (SKU) ID_PARENT" = pa.ID_PARENT
     GROUP BY s.id_item
 ),
-*/
 
 /* ========================================
    PROP 65 — unchanged logic
@@ -233,11 +235,11 @@ primary_vendor AS (
    =======================================*/
 Adjusted_Parent_Item_Status AS (
     SELECT 
-        adj."Item ID_Child SKU",
+        adj."Item_ID_Child_SKU",
         count(*) AS cnt
     FROM (         
         SELECT 
-            b.ID_ITEM AS "Item ID_Child SKU",
+            b.ID_ITEM AS "Item_ID_Child_SKU",
             pd.PARENT_ITEM_STATUS AS "Item Status_Parent Active Status",
             b.CHILD_ITEM_STATUS AS "Item Status_Child Active Status"
         FROM ITMMAS_BASE b
@@ -245,7 +247,7 @@ Adjusted_Parent_Item_Status AS (
         LEFT JOIN parent_descriptions   pd  ON s."ATTR (SKU) ID_PARENT" = pd.id_item
         WHERE b.CHILD_ITEM_STATUS = 'A' AND pd.PARENT_ITEM_STATUS = 'O'
     ) adj
-    GROUP BY adj."Item ID_Child SKU" 
+    GROUP BY adj."Item_ID_Child_SKU" 
 )
 
 /* ========================================
@@ -279,16 +281,16 @@ Adjusted_Parent_Item_Status AS (
 -- )
         
     SELECT
-        b.id_item                                   AS "Item_ID_Child_SKU",
-        UPPER(b."Item Description_Child SKU")      AS "Item_Description_Child_SKU",
-        b."COST CATEGORY"                          AS "Item_Cost_Category_ID",
-        UPPER(COALESCE(b."COST CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY')) AS "Item_Cost_Category",
-        UPPER(b."NSA_PRODUCT CATEGORY/VERTICAL")   AS "Item_Vertical_Code",
+        b.id_item                                  AS "Item_ID_Child_SKU",
+        b."Item_Description_Child_SKU",
+        b."COST_CATEGORY"                          AS "Item_Cost_Category_ID",
+        UPPER(COALESCE(b."COST_CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY')) AS "Item_Cost_Category",
+        UPPER(b."NSA_PRODUCT_VERTICAL")   AS "Item_Vertical",
         -- UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) AS "PRDT CAT DESCR", --! review: no Needed Master Field mapping
-        b."CODE_COMM"                              AS "Item_Commodity_Code",
-        b."RATIO_STK_PUR"                          AS "Ratio_Purchase_to_Stock",
-        UPPER(v.vertical)                           AS "Item_Vertical",
-        -- UPPER(c.category)                           AS "CATEGORY (Calc)", --! review: no Needed Master Field mapping
+        b."Item_Commodity_Code",
+        b."Ratio_Purchase_to_Stock",
+        -- UPPER(v.vertical)                           AS "Item_Vertical",  --! Removed as Vertical is referenced from table_code_cat_prdt from itmmas_base and not from attributes.
+        UPPER(c.category)                           AS "Item_Product Category", --! review: no Needed Master Field mapping
         ic.COST_MATL_ACCUM_CRNT                     AS "Cost_Material_Accumulated_Current",
         ic.COST_MATL_ACCUM_STD                      AS "Cost_Material_Accumulated_Standard",
         ic.COST_FB_VA_CRNT                          AS "Cost_Freight_Current",
@@ -341,9 +343,9 @@ Adjusted_Parent_Item_Status AS (
         pv.code_um_vnd                              AS "Unit_of_Measure_Vendor_Code",
         s."ATTR (SKU) ID_PARENT"                   AS "Item_ID_Parent_SKU",
         UPPER(CASE
-            WHEN UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) ILIKE '%FABRIC%' AND pd."Item Description_Parent SKU" IS NULL
-            THEN b."Item Description_Child SKU"
-            ELSE COALESCE(pd."Item Description_Parent SKU", 'MISSING DESCRIPTION - UPDATE TCM')
+            WHEN UPPER(COALESCE(b."NSA_PRODUCT_VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) ILIKE '%FABRIC%' AND pd."Item_Description_Parent_SKU" IS NULL
+            THEN b."Item_Description_Child_SKU"
+            ELSE COALESCE(pd."Item_Description_Parent_SKU", 'MISSING DESCRIPTION - UPDATE TCM')
         END)                                        AS "Item_Description_Parent_SKU",
 
         UPPER(s."ATTR (SKU) CERT_NUM")             AS "Item_Certificate_Number",
@@ -391,16 +393,16 @@ Adjusted_Parent_Item_Status AS (
     FROM ITMMAS_BASE b
     -- LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_LOC" il ON b.id_item = il.id_item
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_COST_Bronze" ic on b.id_item = ic.id_item 
-    LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_COST_Bronze" cc ON b."COST CATEGORY" = cc.code_cat_cost
-    LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc ON b."NSA_PRODUCT CATEGORY/VERTICAL" = pc.code_cat_prdt AND pc.code_type_cust IS NULL
+    LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_COST_Bronze" cc ON b."COST_CATEGORY" = cc.code_cat_cost
+    LEFT JOIN BRONZE_DATA.TCM_BRONZE."TABLES_CODE_CAT_PRDT_Bronze" pc ON b."NSA_PRODUCT_VERTICAL" = pc.code_cat_prdt AND pc.code_type_cust IS NULL
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."ITMMAS_STK_LIST_Bronze" stkl on b.id_item = stkl.id_item 
     LEFT JOIN sku_attributes     s   ON b.id_item = s.id_item
     LEFT JOIN parent_attributes  pa  ON s."ATTR (SKU) ID_PARENT" = pa.ID_PARENT
     LEFT JOIN parent_descriptions pd ON s."ATTR (SKU) ID_PARENT" = pd.id_item
-    -- LEFT JOIN category_calc      c   ON b.id_item = c.id_item --! review: CATEGORY (Calc) removed from output
-    LEFT JOIN vertical_calc      v   ON b.id_item = v.id_item
+    LEFT JOIN category_calc      c   ON b.id_item = c.id_item 
+    -- LEFT JOIN vertical_calc      v   ON b.id_item = v.id_item    --! review: vertical is referenced from table_code_cat_prdt from itmmas_base and not from attributes, so removed vertical_calc CTE and join
     LEFT JOIN prop_65_calc       p65 ON s."ATTR (SKU) ID_PARENT" = p65.id_item_par
     LEFT JOIN primary_vendor     pv  ON b.id_item = pv.id_item
-    LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Item ID_Child SKU"
+    LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Item_ID_Child_SKU"
     -- LEFT JOIN item_planner        ip  ON b.id_item = ip.id_item  --! Don't need; location-specific -> already included in item_inventory_master if needed for downstream use cases. Can revisit if we want to add a single "primary" planner and/or location to the product master.
-    WHERE b.code_comm <> 'PAR';
+    WHERE b."Item_Commodity_Code" <> 'PAR';
