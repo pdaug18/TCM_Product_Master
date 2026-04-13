@@ -285,8 +285,8 @@ Adjusted_Parent_Item_Status AS (
         b."Item_Description_Child_SKU",
         b."COST_CATEGORY"                          AS "Item_Cost_Category_ID",
         UPPER(COALESCE(b."COST_CATEGORY" || ' - ' || cc.descr, 'INVALID COST CATEGORY')) AS "Item_Cost_Category",
-        UPPER(b."NSA_PRODUCT_VERTICAL")   AS "Item_Vertical",
-        -- UPPER(COALESCE(b."NSA_PRODUCT CATEGORY/VERTICAL" || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) AS "PRDT CAT DESCR", --! review: no Needed Master Field mapping
+        UPPER(b."NSA_PRODUCT_VERTICAL")   AS "Item_Vertical_Code",
+        UPPER(COALESCE(b."NSA_PRODUCT_VERTICAL" || ' - ' || pc.descr, b."NSA_PRODUCT_VERTICAL")) AS "Item_Vertical",
         b."Item_Commodity_Code",
         b."Ratio_Purchase_to_Stock",
         -- UPPER(v.vertical)                           AS "Item_Vertical",  --! Removed as Vertical is referenced from table_code_cat_prdt from itmmas_base and not from attributes.
@@ -374,7 +374,7 @@ Adjusted_Parent_Item_Status AS (
         UPPER(pa."ATTR (PAR) PRODUCT_APP")        AS "Item_Product_Application",
         UPPER(pa."ATTR (PAR) TRACKING")            AS "Item_Bin_Tracking",
         UPPER(pa."ATTR (PAR) Z_BRAND")              AS "Item_Brand",
-        UPPER(pa."ATTR (PAR) Z_CATEGORY")           AS "Item_Product_Category_Code", --! review: no Needed Master Field mapping
+        UPPER(pa."ATTR (PAR) Z_CATEGORY")           AS "Item_Product_Category_Code",
         UPPER(pa."ATTR (PAR) Z_GENDER")             AS "Item_Gender",
         -- UPPER(pa."ATTR (PAR) Z_VERTICAL")           AS "Item_Vertical Code", --! review: no Needed Master Field mapping
         UPPER(stkl.adv)                              AS "Item_Advertised_Flag",
@@ -407,4 +407,6 @@ Adjusted_Parent_Item_Status AS (
     LEFT JOIN primary_vendor     pv  ON b.id_item = pv.id_item
     LEFT JOIN Adjusted_Parent_Item_Status apit ON b.id_item = apit."Item_ID_Child_SKU"
     -- LEFT JOIN item_planner        ip  ON b.id_item = ip.id_item  --! Don't need; location-specific -> already included in item_inventory_master if needed for downstream use cases. Can revisit if we want to add a single "primary" planner and/or location to the product master.
-    WHERE b."Item_Commodity_Code" <> 'PAR';
+    WHERE b."Item_Commodity_Code" <> 'PAR'
+    -- limit 100
+    ;
