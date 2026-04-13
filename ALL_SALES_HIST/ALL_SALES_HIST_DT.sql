@@ -43,10 +43,11 @@ WITH BASE AS (
         mpt."Item_Description_Child_SKU",
         mpt."Item_Cost_Category_ID",
         COALESCE(mpt."Item_Cost_Category", 'INVALID COST CATEGORY')                 AS "Item_Cost_Category",
-        -- mpt."Item_Vertical_Code",
-        -- COALESCE(mpt."Item_Vertical", 'INVALID PRODUCT CATEGORY')              AS "Item_Vertical",
-        sls."TCM Historical Vertical",
+        mpt."Item_Vertical_Code",
         mpt."Item_Vertical",
+        sls."TCM Historical Vertical",
+        mpt."Item_Product_Line",
+        mpt."Item_Product_Application",
         -- mpt."CATEGORY (Calc)", -- removed from MASTER_PRODUCT_TABLE
         mpt."Item_ID_Parent_SKU",
         COALESCE(mpt."Item_Description_Parent_SKU", 'MISSING DESCRIPTION - UPDATE TCM')  AS "Item_Description_Parent_SKU",
@@ -75,7 +76,6 @@ WITH BASE AS (
         mpt."Item_Brand",
         mpt."Item_Product_Category_Code",
         mpt."Item_Gender",
-        -- mpt."Item_Vertical_Code", -- no longer emitted separately in MASTER_PRODUCT_TABLE
         mpt."Item_Advertised_Flag",
         mpt."Cost_Material_Accumulated_Current",
         mpt."Cost_Material_Accumulated_Standard",
