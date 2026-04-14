@@ -2,11 +2,10 @@
 -- Works for tables and views. Dynamic tables are covered when exposed via INFORMATION_SCHEMA.TABLES.
 -- Replace the parameter placeholders or SET from an upstream procedure/task.
 
--- SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER
 
-SET DB_NAME = 'GOLD_DATA';        -- Set to the database containing the object
-SET SCHEMA_NAME = 'TCM_GOLD';  -- Set to the schema containing the object
-SET OBJECT_NAME = 'OPEN_ORDERS_WITH_PRICES';  -- Set to the table or view name to profile
+SET DB_NAME = 'BRONZE_DATA';        -- Set to the database containing the object
+SET SCHEMA_NAME = 'TCM_BRONZE';  -- Set to the schema containing the object
+SET OBJECT_NAME = 'CP_SHPLIN_Bronze';  -- Set to the table or view name to profile
 
 -- Profiling controls: for large objects, set PROFILE_ON_SAMPLE = TRUE to reduce scan cost.
 SET PROFILE_ON_SAMPLE = FALSE;  -- Set to TRUE to enable sampling for profiling (uses SAMPLE BERNOULLI)
@@ -21,25 +20,15 @@ SET OBJECT_FQN = (
 		|| REPLACE($OBJECT_NAME, '"', '""') || '"'
 );
 
-SET INFO_SCHEMA_FQN = (
-	SELECT '"' || REPLACE($DB_NAME, '"', '""') || '"."INFORMATION_SCHEMA"'
-);
+SET INFO_SCHEMA_FQN = (SELECT '"' || REPLACE($DB_NAME, '"', '""') || '"."INFORMATION_SCHEMA"');
 
-SET INFO_SCHEMA_TABLES_FQN = (
-	SELECT $INFO_SCHEMA_FQN || '.TABLES'
-);
+SET INFO_SCHEMA_TABLES_FQN = (SELECT $INFO_SCHEMA_FQN || '.TABLES');
 
-SET INFO_SCHEMA_VIEWS_FQN = (
-	SELECT $INFO_SCHEMA_FQN || '.VIEWS'
-);
+SET INFO_SCHEMA_VIEWS_FQN = (SELECT $INFO_SCHEMA_FQN || '.VIEWS');
 
-SET INFO_SCHEMA_COLUMNS_FQN = (
-	SELECT $INFO_SCHEMA_FQN || '.COLUMNS'
-);
+SET INFO_SCHEMA_COLUMNS_FQN = (SELECT $INFO_SCHEMA_FQN || '.COLUMNS');
 
-SET INFO_SCHEMA_TABLE_CONSTRAINTS_FQN = (
-	SELECT $INFO_SCHEMA_FQN || '.TABLE_CONSTRAINTS'
-);
+SET INFO_SCHEMA_TABLE_CONSTRAINTS_FQN = (SELECT $INFO_SCHEMA_FQN || '.TABLE_CONSTRAINTS');
 
 
 CREATE OR REPLACE TEMP TABLE SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_BASE AS
@@ -70,7 +59,7 @@ column_meta AS (
 	SELECT
 		table_catalog AS database_name,
 		table_schema AS schema_name,
-		table_name AS object_name,
+		table_name,
 		column_name,
 		ordinal_position,
 		data_type,
@@ -89,7 +78,7 @@ column_meta AS (
 SELECT
 	cm.database_name,
 	cm.schema_name,
-	cm.object_name,
+	cm.Table_Name,
 	om.object_type,
 	cm.column_name,
 	cm.ordinal_position,
@@ -103,23 +92,26 @@ SELECT
 			 AND cm.datetime_precision IS NOT NULL
 			THEN cm.data_type || '(' || cm.datetime_precision || ')'
 		ELSE cm.data_type
-	END AS data_type_full,
-	cm.numeric_precision,
-	cm.numeric_scale,
-	cm.character_maximum_length,
-	cm.is_nullable,
-	cm.column_default,
-	cm.column_comment,
-	cm.is_identity,
-	'NO' AS is_primary_key,
-	'NO' AS is_foreign_key,
-	om.last_altered
+	END AS "DATA_TYPE",
+	-- cm.numeric_precision,
+	-- cm.numeric_scale,
+	cm.character_maximum_length as char_max_length,
+	-- cm.is_nullable,
+	-- cm.column_default,
+	-- cm.column_comment,
+	-- cm.is_identity,
+	-- 'NO' AS is_primary_key,
+	-- 'NO' AS is_foreign_key,
+	-- om.last_altered
 FROM column_meta cm
 LEFT JOIN object_meta om
 	ON cm.database_name = om.database_name
    AND cm.schema_name = om.schema_name
-   AND cm.object_name = om.object_name;
+   AND cm.Table_Name = om.object_name;
 
+-- Commented out: all s.* output columns (is_masked, masking_policy_name, tags) are disabled above.
+-- Uncomment this block and the LEFT JOIN below to re-enable security profiling.
+/*
 CREATE OR REPLACE TEMP TABLE SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_SECURITY AS
 WITH mask_refs AS (
 	SELECT
@@ -155,6 +147,7 @@ FROM mask_refs m
 FULL OUTER JOIN tag_refs t
 	ON m.object_name = t.object_name
    AND m.column_name = t.column_name;
+*/
 
 BEGIN
 	LET PROFILING_SQL STRING;
@@ -168,9 +161,9 @@ BEGIN
 			SELECT
 				column_name,
 				ordinal_position,
-				data_type_full,
+				"DATA_TYPE",
 				'"' || REPLACE(column_name, '"', '""') || '"' AS col_ref,
-				UPPER(SPLIT_PART(data_type_full, '(', 1)) AS data_type_base
+				UPPER(SPLIT_PART("DATA_TYPE", '(', 1)) AS data_type_base
 			FROM SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_BASE
 			ORDER BY ordinal_position
 		),
@@ -201,6 +194,7 @@ BEGIN
 					ELSE 'NULL'
 				   END || ' AS max_length, '
 				|| 'COUNT(DISTINCT IFF(' || col_ref || ' IS NULL, NULL, ' || col_ref || ')) AS distinct_count, '
+				|| 'ROUND((COUNT(*) - COUNT(' || col_ref || ')) / NULLIF(COUNT(*), 0) * 100, 2) AS "NULL_%", '
 				|| '(SELECT LISTAGG(sample_v, '', '') WITHIN GROUP (ORDER BY sample_v) FROM ('
 				|| 'SELECT DISTINCT TO_VARCHAR(' || col_ref || ') AS sample_v '
 				|| 'FROM ' || $OBJECT_FQN
@@ -225,35 +219,36 @@ END;
 SELECT
 	b.database_name,
 	b.schema_name,
-	b.object_name,
-	b.object_type,
+	b.Table_Name, 
+	-- b.object_type,
 	b.column_name,
-	b.ordinal_position,
-	b.data_type_full,
-	b.numeric_precision,
-	b.numeric_scale,
-	b.character_maximum_length,
-	b.is_nullable,
-	b.column_default,
-	p.min_length,
-	p.max_length,
+	-- b.ordinal_position,
+	b."DATA_TYPE",
+	-- b.numeric_precision,
+	-- b.numeric_scale,
+	b.char_max_length,
+	-- b.is_nullable,
+	-- b.column_default,
+	-- p.min_length,
+	-- p.max_length,
 	p.min_value,
 	p.max_value,
 	p.distinct_count,
-	p.sample_values,
-	b.is_primary_key,
-	b.is_foreign_key,
-	b.is_identity,
-	b.column_comment,
-	COALESCE(s.is_masked, 'NO') AS is_masked,
-	s.masking_policy_name,
-	s.tags,
-	b.last_altered
+	p."NULL_%",
+	p.sample_values
+	-- b.is_primary_key,
+	-- b.is_foreign_key,
+	-- b.is_identity,
+	-- b.column_comment,
+	-- COALESCE(s.is_masked, 'NO') AS is_masked,
+	-- s.masking_policy_name,
+	-- s.tags,
+	-- b.last_altered
 FROM SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_BASE b
 LEFT JOIN SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_PROFILE p
 	ON b.column_name = p.column_name
    AND b.ordinal_position = p.ordinal_position
-LEFT JOIN SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_SECURITY s
-	ON UPPER(b.object_name) = s.object_name
-   AND UPPER(b.column_name) = s.column_name
+-- LEFT JOIN SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_SECURITY s
+-- 	ON UPPER(b.Table_Name) = s.object_name
+--    AND UPPER(b.column_name) = s.column_name
 ORDER BY b.ordinal_position;
