@@ -5,7 +5,7 @@
 
 SET DB_NAME = 'BRONZE_DATA';        -- Set to the database containing the object
 SET SCHEMA_NAME = 'TCM_BRONZE';  -- Set to the schema containing the object
-SET OBJECT_NAME = 'CP_SHPLIN_Bronze';  -- Set to the table or view name to profile
+SET OBJECT_NAME = 'cp_shphdr_perm_Bronze';  -- Set to the table or view name to profile
 
 -- Profiling controls: for large objects, set PROFILE_ON_SAMPLE = TRUE to reduce scan cost.
 SET PROFILE_ON_SAMPLE = FALSE;  -- Set to TRUE to enable sampling for profiling (uses SAMPLE BERNOULLI)
@@ -42,18 +42,10 @@ WITH object_meta AS (
 	FROM IDENTIFIER($INFO_SCHEMA_TABLES_FQN)
 	WHERE UPPER(table_schema) = UPPER($SCHEMA_NAME)
 	  AND UPPER(table_name) = UPPER($OBJECT_NAME)
-
-	UNION ALL
-
-	SELECT
-		table_catalog AS database_name,
-		table_schema AS schema_name,
-		table_name AS object_name,
-		'VIEW' AS object_type,
-		last_altered
-	FROM IDENTIFIER($INFO_SCHEMA_VIEWS_FQN)
-	WHERE UPPER(table_schema) = UPPER($SCHEMA_NAME)
-	  AND UPPER(table_name) = UPPER($OBJECT_NAME)
+	QUALIFY ROW_NUMBER() OVER (
+		PARTITION BY UPPER(table_catalog), UPPER(table_schema), UPPER(table_name)
+		ORDER BY last_altered DESC NULLS LAST
+	) = 1
 ),
 column_meta AS (
 	SELECT
@@ -107,7 +99,11 @@ FROM column_meta cm
 LEFT JOIN object_meta om
 	ON cm.database_name = om.database_name
    AND cm.schema_name = om.schema_name
-   AND cm.Table_Name = om.object_name;
+   AND cm.Table_Name = om.object_name
+QUALIFY ROW_NUMBER() OVER (
+	PARTITION BY UPPER(cm.database_name), UPPER(cm.schema_name), UPPER(cm.table_name), UPPER(cm.column_name), cm.ordinal_position
+	ORDER BY om.last_altered DESC NULLS LAST
+) = 1;
 
 -- Commented out: all s.* output columns (is_masked, masking_policy_name, tags) are disabled above.
 -- Uncomment this block and the LEFT JOIN below to re-enable security profiling.
@@ -193,8 +189,8 @@ BEGIN
 						THEN 'MAX(IFF(NULLIF(TRIM(' || col_ref || '), '''') IS NULL, NULL, LENGTH(' || col_ref || ')))'
 					ELSE 'NULL'
 				   END || ' AS max_length, '
-				|| 'COUNT(DISTINCT IFF(' || col_ref || ' IS NULL, NULL, ' || col_ref || ')) AS distinct_count, '
-				|| 'ROUND((COUNT(*) - COUNT(' || col_ref || ')) / NULLIF(COUNT(*), 0) * 100, 2) AS "NULL_%", '
+				|| 'COUNT(DISTINCT NULLIF(TRIM(TO_VARCHAR(' || col_ref || ')), '''')) AS distinct_count, '
+				|| 'ROUND((COUNT(*) - COUNT(NULLIF(TRIM(TO_VARCHAR(' || col_ref || ')), ''''))) / NULLIF(COUNT(*), 0) * 100, 2) AS "NULL_%", '
 				|| '(SELECT LISTAGG(sample_v, '', '') WITHIN GROUP (ORDER BY sample_v) FROM ('
 				|| 'SELECT DISTINCT TO_VARCHAR(' || col_ref || ') AS sample_v '
 				|| 'FROM ' || $OBJECT_FQN
@@ -252,3 +248,4 @@ LEFT JOIN SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_PROFILE p
 -- 	ON UPPER(b.Table_Name) = s.object_name
 --    AND UPPER(b.column_name) = s.column_name
 ORDER BY b.ordinal_position;
+
