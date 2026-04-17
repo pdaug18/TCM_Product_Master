@@ -239,11 +239,24 @@ SELECT
     END AS Qty_Rel
 FROM
     ItemSourceData isd
+),
+SecondaryLocations AS (
+    SELECT
+        fd.id_item,
+        LISTAGG(fd.id_loc, ', ') WITHIN GROUP (ORDER BY fd.id_loc) AS secondary_location_list
+    FROM FinalData fd
+    LEFT JOIN LocationNames ln ON fd.id_loc = ln.id_loc
+    WHERE CASE
+        WHEN fd.primary_source = ln.loc_name THEN 'P'
+        ELSE 'S'
+    END = 'S'
+    GROUP BY fd.id_item
 )
 SELECT 
     fd.id_item                  AS "Item_ID_Child_SKU",
     -- fd.item_description         AS "Item_Description",
     fd.id_loc                   AS "Inventory_Location_ID",
+    sl.secondary_location_list  AS "Item_Secondary_Location_List",
     fd.flag_source              AS "Item_Sourcing_Type_Flag",
     fd.primary_source           AS "Item_Primary_Source_by_Location",
     fd.NSA_Manufactured         AS "Item_NSA_Manufactured_Status",
@@ -275,5 +288,6 @@ SELECT
     --! Inventory_Qunaity_in-Transit is not included.
 FROM FinalData fd
 LEFT JOIN LocationNames ln ON fd.id_loc = ln.id_loc
+LEFT JOIN SecondaryLocations sl ON fd.id_item = sl.id_item
 order by fd.id_item, fd.id_loc;
 
