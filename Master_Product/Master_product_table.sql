@@ -8,30 +8,62 @@ GET ALL BASE TABLES FIRST TO AVOID REPEATING SOURCE LOGIC
     ======================================== */
     ITMMAS_BASE AS (
         SELECT 
-            TRIM(ib.id_item) AS id_item,
-            ib.descr_1,
-            ib.key_alt,
-            ib.code_cat_prdt,
-            ib.code_cat_cost,
-            TRIM(ib.id_user_add) AS id_user_add,
-            ib.date_add,
-            TRIM(ib.id_user_chg) AS id_user_chg,
-            ib.date_chg,
-            ib.descr_2,
-            ib.code_comm,
-            TRIM(ib.id_loc) AS id_loc,
-            ib.flag_stat_item,
-            ib.ratio_stk_pur,
-            ib.wgt_item,
-            ib.ratio_stk_price,
-            ib.code_um_price,
-            ib.code_um_pur,
-            ib.code_um_stk,
-            ib.code_user_1_im,
-            ib.code_user_2_im,
-            ib.code_user_3_im,
-            ib.type_cost
-        FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib 
+            t.id_item,
+            t.descr_1,
+            t.key_alt,
+            t.code_cat_prdt,
+            t.code_cat_cost,
+            t.id_user_add,
+            t.date_add,
+            t.id_user_chg,
+            t.date_chg,
+            t.descr_2,
+            t.code_comm,
+            t.id_loc,
+            t.flag_stat_item,
+            t.ratio_stk_pur,
+            t.wgt_item,
+            t.ratio_stk_price,
+            t.code_um_price,
+            t.code_um_pur,
+            t.code_um_stk,
+            t.code_user_1_im,
+            t.code_user_2_im,
+            t.code_user_3_im,
+            t.type_cost
+        FROM (
+            SELECT
+                TRIM(ib.id_item) AS id_item,
+                ib.descr_1,
+                ib.key_alt,
+                ib.code_cat_prdt,
+                ib.code_cat_cost,
+                TRIM(ib.id_user_add) AS id_user_add,
+                ib.date_add,
+                TRIM(ib.id_user_chg) AS id_user_chg,
+                ib.date_chg,
+                ib.descr_2,
+                ib.code_comm,
+                TRIM(ib.id_loc) AS id_loc,
+                ib.flag_stat_item,
+                ib.ratio_stk_pur,
+                ib.wgt_item,
+                ib.ratio_stk_price,
+                ib.code_um_price,
+                ib.code_um_pur,
+                ib.code_um_stk,
+                ib.code_user_1_im,
+                ib.code_user_2_im,
+                ib.code_user_3_im,
+                ib.type_cost,
+                ib."rowid",
+                ROW_NUMBER() OVER (
+                    PARTITION BY TRIM(ib.id_item)
+                    ORDER BY ib."rowid" DESC
+                ) AS rn
+            FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
+        ) t
+        WHERE t.rn = 1
     ),
 
     /* ========================================
@@ -171,13 +203,6 @@ GET ALL BASE TABLES FIRST TO AVOID REPEATING SOURCE LOGIC
             TRIM(iv.id_vnd_payto) AS id_vnd_payto,
             TRIM(iv.id_vnd_ordfm) AS id_vnd_ordfm,
             TRIM(iv.id_item_vnd) AS id_item_vnd,
-            COALESCE(
-                GET_IGNORE_CASE(OBJECT_CONSTRUCT_KEEP_NULL(iv.*), 'PRICE_QUOTE')::STRING,
-                GET_IGNORE_CASE(OBJECT_CONSTRUCT_KEEP_NULL(iv.*), 'QUOTE_PRICE')::STRING,
-                GET_IGNORE_CASE(OBJECT_CONSTRUCT_KEEP_NULL(iv.*), 'AMT_QUOTE')::STRING,
-                GET_IGNORE_CASE(OBJECT_CONSTRUCT_KEEP_NULL(iv.*), 'PRICE_VND')::STRING,
-                GET_IGNORE_CASE(OBJECT_CONSTRUCT_KEEP_NULL(iv.*), 'PRICE')::STRING
-            ) AS quote_price,
             iv.date_quote,
             iv.date_expire_quote,
             iv.qty_mult_ord,
@@ -376,7 +401,7 @@ secondary_vendor AS (
         iv.id_item,
         LISTAGG(vp.name_vnd, ', ') WITHIN GROUP (ORDER BY iv.id_vnd_payto) AS "Item_Secondary_Vendors_Names",
         LISTAGG(iv.id_vnd_payto, ', ') WITHIN GROUP (ORDER BY iv.id_vnd_payto) AS "Item_Secondary_Vendor_IDs",
-        LISTAGG(iv.quote_price, ', ') WITHIN GROUP (ORDER BY iv.id_vnd_payto) AS "Item_Secondary_Vendors_Quoted_Prices"
+        -- LISTAGG(iv.quote_price, ', ') WITHIN GROUP (ORDER BY iv.id_vnd_payto) AS "Item_Secondary_Vendors_Quoted_Prices"
     FROM ITMMAS_VND iv
     LEFT JOIN BRONZE_DATA.TCM_BRONZE."VENMAS_PAYTO_Bronze" vp
       ON iv.id_vnd_payto = TRIM(vp.id_vnd)
@@ -407,11 +432,20 @@ Adjusted_Parent_Item_Status AS (
    ITEM Primary Location
    ======================================== */
 item_prim_loc AS (
-    select distinct "Item_ID_Child_SKU",
-    "Inventory_Location_ID",
-    "Item_Secondary_Location_List"
-    from SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER
-    group by "Item_ID_Child_SKU", "Inventory_Location_ID", "Item_Secondary_Location_List"
+    SELECT
+        "Item_ID_Child_SKU",
+        "Inventory_Location_ID",
+        "Item_Secondary_Location_List"
+    FROM SILVER_DATA.TCM_SILVER.ITEM_INVENTORY_MASTER
+    QUALIFY ROW_NUMBER() OVER (
+        PARTITION BY "Item_ID_Child_SKU"
+        ORDER BY
+            IFF(TRIM("Inventory_Location_ID") = '10', 0, 1),
+            IFF("Inventory_Location_ID" IS NULL, 1, 0),
+            IFF("Item_Secondary_Location_List" IS NULL, 1, 0),
+            "Inventory_Location_ID",
+            "Item_Secondary_Location_List"
+    ) = 1
 )
         
     SELECT
@@ -515,7 +549,7 @@ item_prim_loc AS (
         pv.id_item_vnd                              AS "Item_Primary_Vendor_Item_ID",
         sv."Item_Secondary_Vendors_Names"           AS "Item_Secondary_Vendors_Names",
         sv."Item_Secondary_Vendor_IDs"             AS "Item_Secondary_Vendor_IDs",
-        sv."Item_Secondary_Vendors_Quoted_Prices"  AS "Item_Secondary_Vendors_Quoted_Prices",
+        -- sv."Item_Secondary_Vendors_Quoted_Prices"  AS "Item_Secondary_Vendors_Quoted_Prices",
         s."Item_ID_Parent_SKU"                     AS "Item_ID_Parent_SKU",
         UPPER(CASE
             WHEN UPPER(COALESCE(b.code_cat_prdt || ' - ' || pc.descr, 'INVALID PRODUCT CATEGORY')) ILIKE '%FABRIC%' AND pd."Item_Description_Parent_SKU" IS NULL

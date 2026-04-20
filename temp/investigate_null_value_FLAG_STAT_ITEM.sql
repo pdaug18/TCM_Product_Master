@@ -129,3 +129,41 @@ WHERE "is_deleted" = 0;  -- 1467389
 select "Product ID/SKU", "Product Description","Product Name/Parent ID", "Child Item Status", "Parent Item Status"
 from SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE
 where "Product ID/SKU" ilike '160SG%';
+
+
+
+
+-- ==================================================================
+        SELECT
+            TRIM(iv.id_item) as id_item,
+            iv.flag_vnd_prim,
+            TRIM(iv.id_vnd_payto) AS id_vnd_payto,
+            TRIM(iv.id_vnd_ordfm) AS id_vnd_ordfm,
+            TRIM(iv.id_item_vnd) AS id_item_vnd,
+            COALESCE(
+                GET_IGNORE_CASE(OBJECT_CONSTRUCT_KEEP_NULL(iv.*), 'PRICE_QUOTE')::STRING,
+                GET_IGNORE_CASE(OBJECT_CONSTRUCT_KEEP_NULL(iv.*), 'QUOTE_PRICE')::STRING,
+                GET_IGNORE_CASE(OBJECT_CONSTRUCT_KEEP_NULL(iv.*), 'AMT_QUOTE')::STRING,
+                GET_IGNORE_CASE(OBJECT_CONSTRUCT_KEEP_NULL(iv.*), 'PRICE_VND')::STRING,
+                GET_IGNORE_CASE(OBJECT_CONSTRUCT_KEEP_NULL(iv.*), 'PRICE')::STRING
+            ) AS quote_price,
+            iv.date_quote,
+            iv.date_expire_quote,
+            iv.qty_mult_ord,
+            iv.code_um_vnd,
+            -- iv.ratio_stk_pur,
+            -- iv.comment_user
+        FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_VND_Bronze" iv
+        where 
+
+    -- ===============================================================
+        SELECT
+    iv.id_item,
+    LISTAGG(vp.name_vnd, ', ') WITHIN GROUP (ORDER BY iv.id_vnd_payto) AS "Item_Secondary_Vendors_Names",
+    LISTAGG(iv.id_vnd_payto, ', ') WITHIN GROUP (ORDER BY iv.id_vnd_payto) AS "Item_Secondary_Vendor_IDs",
+    LISTAGG(iv.PRICE_VND_FC_1 , ', ') WITHIN GROUP (ORDER BY iv.id_vnd_payto) AS "Item_Secondary_Vendors_Quoted_Prices"
+FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_VND_Bronze" iv
+LEFT JOIN BRONZE_DATA.TCM_BRONZE."VENMAS_PAYTO_Bronze" vp
+    ON iv.id_vnd_payto = TRIM(vp.id_vnd)
+WHERE iv.flag_vnd_prim = 'S'
+GROUP BY iv.id_item
