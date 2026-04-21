@@ -1,157 +1,141 @@
-CREATE OR REPLACE DYNAMIC TABLE SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE
-    TARGET_LAG   = 'DOWNSTREAM'
-    REFRESH_MODE = AUTO
-    INITIALIZE   = ON_CREATE
-    WAREHOUSE    = ELT_DEFAULT
-AS
+-- CREATE OR REPLACE DYNAMIC TABLE SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE
+--     TARGET_LAG   = 'DOWNSTREAM'
+--     REFRESH_MODE = AUTO
+--     INITIALIZE   = ON_CREATE
+--     WAREHOUSE    = ELT_DEFAULT
+-- AS
 /* ============================================================
    ORD_HDR — Order header fields (one row per order)
    Sources: CP_ORDHDR_Bronze (active) ∪ CP_ORDHDR_PERM_Bronze (closed)
    ============================================================ */
 WITH ORD_HDR AS (
     SELECT
-        h.ID_ORD,
+        TRIM(h.ID_ORD)              AS ID_ORD,
         'ACTIVE'                    AS HDR_SOURCE_TABLE,
 
         -- Customer
-        h.ID_CUST_SOLDTO,
+        TRIM(h.ID_CUST_SOLDTO)      AS ID_CUST_SOLDTO,
         h.SEQ_SHIPTO,
-        h.ID_CUST_BILLTO,
-        h.NAME_CUST,
-        h.NAME_CUST_SHIPTO,
-        h.ID_PO_CUST,
+        TRIM(h.ID_CUST_BILLTO)      AS ID_CUST_BILLTO,
+        TRIM(h.ID_PO_CUST)          AS ID_PO_CUST,
+
+        -- Accounting
+        TRIM(h.ACCT_ID_AR)          AS ACCT_ID_AR,
+        TRIM(h.ACCT_ID_DEP)         AS ACCT_ID_DEP,
+        TRIM(h.ACCT_ID_TAX)         AS ACCT_ID_TAX,
+        TRIM(h.ACCT_ID_FRT)         AS ACCT_ID_FRT,
+        TRIM(h.ACCT_ID_CHRG_MISC)   AS ACCT_ID_CHRG_MISC,
+        TRIM(h.ACCT_ID_FEE_RESTOCK) AS ACCT_ID_FEE_RESTOCK,
+        h.ACCT_DEPT_TAX             AS ACCT_DIV_TAX,
+        h.ACCT_DEPT_FRT,
+        h.ACCT_DEPT_CHRG_MISC,
+        h.ACCT_DEPT_FEE_RESTOCK,
 
         -- Order Classification
         h.TYPE_ORD_CP,
         h.CODE_STAT_ORD,
-
-        -- Customer Type Codes
-        h.CODE_CUST_1,
-        h.CODE_CUST_2,
-        h.CODE_CUST_3,
+        h.CODE_SRC_EDI,
+        h.ABBRV_CONSIG,
 
         -- Sales
-        h.ID_SLSREP_1,
-        h.ID_SLSREP_2,
-        h.ID_SLSREP_3,
-        h.PCT_SPLIT_COMMSN_1,
-        h.PCT_SPLIT_COMMSN_2,
-        h.PCT_SPLIT_COMMSN_3,
-        h.PCT_COMMSN,
+        TRIM(h.ID_SLSREP_1)         AS ID_SLSREP_1,
+
+        -- Flags
+        h.FLAG_ASN_EDI,
+        h.FLAG_INVC_EDI,
+        h.FLAG_PAID_BY_CC,
+        h.FLAG_810,
 
         -- Dates
         h.DATE_ORD,
-        h.DATE_PICK_LAST,
-        h.DATE_ACKN_LAST,
         h.DATE_ADD,
-        h.DATE_BOOK_LAST,
-        h.DATE_SHIP_LAST            AS HDR_DATE_SHIP_LAST,
-        h.DATE_INVC_LAST            AS HDR_DATE_INVC_LAST,
-
-        -- Ship-from / Shipping
-        h.ID_LOC_SHIPFM,
-        h.CODE_SHIP_VIA_CP,
-        h.DESCR_SHIP_VIA,
-
-        -- Ship-to Address
-        h.ADDR_1,
-        h.ADDR_2,
-        h.CITY,
-        h.ID_ST,
-        h.ZIP,
-        h.COUNTRY,
 
         -- Terms
         h.CODE_TRMS_CP,
         h.DESCR_TRMS,
         h.PCT_DISC_TRMS,
         h.PCT_DISC_ORD_1,
-        h.PCT_DISC_ORD_2,
-        h.PCT_DISC_ORD_3,
 
         -- Financials (header-level totals)
         h.AMT_ORD_TOTAL,
         h.COST_TOTAL,
         h.AMT_FRT,
-        h.TAX_SLS,
-
-        -- Territory
-        h.ID_TERR,
 
         -- Reference
-        h.ID_QUOTE,
-        h.ID_JOB,
+        TRIM(h.ID_ORD_WEB)          AS ID_ORD_WEB,
+        TRIM(h.ID_DOC_APPLYTO)      AS ID_DOC_APPLYTO,
+        TRIM(h.ID_REL)              AS ID_REL,
+        TRIM(h.ID_REV)              AS ID_REV,
 
         -- User
-        h.ID_USER_ADD
+        TRIM(h.ID_USER_ADD)         AS ID_USER_ADD,
+
+        -- Miscellaneous
+        h.ATTACH_COMMENT,
+        h.RATE_EXCHG_CRNCY,
+        h.AMT_DISC
 
     FROM BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_Bronze" h
 
     UNION ALL
 
     SELECT
-        p.ID_ORD,
+        TRIM(p.ID_ORD)              AS ID_ORD,
         'PERM'                      AS HDR_SOURCE_TABLE,
 
-        p.ID_CUST_SOLDTO,
+        TRIM(p.ID_CUST_SOLDTO)      AS ID_CUST_SOLDTO,
         p.SEQ_SHIPTO,
-        p.ID_CUST_BILLTO,
-        p.NAME_CUST,
-        p.NAME_CUST_SHIPTO,
-        p.ID_PO_CUST,
+        TRIM(p.ID_CUST_BILLTO)      AS ID_CUST_BILLTO,
+        TRIM(p.ID_PO_CUST)          AS ID_PO_CUST,
+
+        -- Accounting
+        TRIM(p.ACCT_ID_AR)          AS ACCT_ID_AR,
+        TRIM(p.ACCT_ID_DEP)         AS ACCT_ID_DEP,
+        TRIM(p.ACCT_ID_TAX)         AS ACCT_ID_TAX,
+        TRIM(p.ACCT_ID_FRT)         AS ACCT_ID_FRT,
+        TRIM(p.ACCT_ID_CHRG_MISC)   AS ACCT_ID_CHRG_MISC,
+        TRIM(p.ACCT_ID_FEE_RESTOCK) AS ACCT_ID_FEE_RESTOCK,
+        p.ACCT_DEPT_TAX             AS ACCT_DIV_TAX,
+        p.ACCT_DEPT_FRT,
+        p.ACCT_DEPT_CHRG_MISC,
+        p.ACCT_DEPT_FEE_RESTOCK,
 
         p.TYPE_ORD_CP,
         p.CODE_STAT_ORD,
+        p.CODE_SRC_EDI,
 
-        p.CODE_CUST_1,
-        p.CODE_CUST_2,
-        p.CODE_CUST_3,
+        p.ABBRV_CONSIG,
 
-        p.ID_SLSREP_1,
-        p.ID_SLSREP_2,
-        p.ID_SLSREP_3,
-        p.PCT_SPLIT_COMMSN_1,
-        p.PCT_SPLIT_COMMSN_2,
-        p.PCT_SPLIT_COMMSN_3,
-        p.PCT_COMMSN,
+        TRIM(p.ID_SLSREP_1)         AS ID_SLSREP_1,
+
+        -- Flags
+        p.FLAG_ASN_EDI,
+        p.FLAG_INVC_EDI,
+        p.FLAG_PAID_BY_CC,
+        p.FLAG_810,
 
         p.DATE_ORD,
-        p.DATE_PICK_LAST,
-        p.DATE_ACKN_LAST,
         p.DATE_ADD,
-        p.DATE_BOOK_LAST,
-        p.DATE_SHIP_LAST            AS HDR_DATE_SHIP_LAST,
-        p.DATE_INVC_LAST            AS HDR_DATE_INVC_LAST,
-
-        p.ID_LOC_SHIPFM,
-        p.CODE_SHIP_VIA_CP,
-        p.DESCR_SHIP_VIA,
-
-        p.ADDR_1,
-        p.ADDR_2,
-        p.CITY,
-        p.ID_ST,
-        p.ZIP,
-        p.COUNTRY,
 
         p.CODE_TRMS_CP,
         p.DESCR_TRMS,
         p.PCT_DISC_TRMS,
         p.PCT_DISC_ORD_1,
-        p.PCT_DISC_ORD_2,
-        p.PCT_DISC_ORD_3,
 
         p.AMT_ORD_TOTAL,
         p.COST_TOTAL,
         p.AMT_FRT,
-        p.TAX_SLS,
 
-        p.ID_TERR,
+        TRIM(p.ID_ORD_WEB)          AS ID_ORD_WEB,
+        TRIM(p.ID_DOC_APPLYTO)      AS ID_DOC_APPLYTO,
+        TRIM(p.ID_REL)              AS ID_REL,
+        TRIM(p.ID_REV)              AS ID_REV,
 
-        p.ID_QUOTE,
-        p.ID_JOB,
+        TRIM(p.ID_USER_ADD)         AS ID_USER_ADD,
 
-        p.ID_USER_ADD
+        p.ATTACH_COMMENT,
+        p.RATE_EXCHG_CRNCY,
+        p.AMT_DISC
 
     FROM BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_PERM_Bronze" p
 ),
@@ -162,147 +146,121 @@ WITH ORD_HDR AS (
    ============================================================ */
 ORD_LIN AS (
     SELECT
-        l.ID_ORD,
+        TRIM(l.ID_ORD)              AS ID_ORD,
         l.SEQ_LINE_ORD,
+        l.SEQ_REV_QUOTE,
         'ACTIVE'                    AS LIN_SOURCE_TABLE,
 
         -- Item
-        l.ID_ITEM,
-        l.ID_ITEM_CUST,
-        l.ID_CONFIG,
-        l.ID_LOC,
-        TRIM(COALESCE(l.DESCR_1, '') || ' ' || COALESCE(l.DESCR_2, ''))  AS LINE_ITEM_DESCRIPTION,
-
-        -- Category
-        l.CODE_CAT_PRDT,
-        l.CODE_CAT_COST,
-
-        -- Quantities
-        l.QTY_ORG,
-        l.QTY_OPEN,
-        l.QTY_BO,
-        l.QTY_BOOK,
-        l.QTY_REL,
-        l.QTY_ALLOC,
-        l.QTY_SHIP_TOTAL,
-        l.QTY_SHIP_LAST,
+        TRIM(l.ID_ITEM)             AS ID_ITEM,
+        TRIM(l.ID_ITEM_CUST)        AS ID_ITEM_CUST,
+        TRIM(l.ID_LOC)              AS ID_LOC,
+        l.CODE_USER_1_IM,
+        l.CODE_USER_2_IM,
 
         -- Pricing (stored as varchar in source — kept as-is for now)
         l.PRICE_LIST_VP,
-        l.PRICE_SELL_VP,
-        l.PRICE_SELL_NET_VP,
         l.COST_UNIT_VP,
         l.PRICE_NET,
-
-        -- Commission
-        l.AMT_COMMSN,
+        l.RATIO_PRICE_SELL,
+        l.PRICE_SELL_VP,
 
         -- Dates (line-level)
         l.DATE_RQST,
         l.DATE_PROM,
         l.DATE_PICK_LAST,
         l.DATE_ACKN_LAST,
-        l.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
-        l.DATE_SHIP_LAST            AS LINE_DATE_SHIP_LAST,
-        l.DATE_INVC_LAST            AS LINE_DATE_INVC_LAST,
-        l.DATE_REL,
+        l.DATE_CHG,
+        l.TIME_CHG,
 
         -- Unit of Measure
         l.CODE_UM_ORD,
         l.CODE_UM_PRICE,
-        l.RATIO_STK_PRICE,
 
         -- Flags
         l.FLAG_PICK,
-        l.FLAG_STK,
         l.FLAG_BO,
-        l.FLAG_PRIOR_LINE_ORD,
         l.FLAG_ACKN,
 
         -- Shop Order Linkage (FK to MASTER_SHOPORDER_TABLE)
-        l.ID_LOC_SO,
-        l.ID_SO,
+        TRIM(l.ID_LOC_SO)           AS ID_LOC_SO,
+        TRIM(l.ID_SO)               AS ID_SO,
         l.SUFX_SO,
 
         -- Backorder
         l.VER_BO,
+        l.ATTACH_COMMENT,
 
-        -- Estimate / Quote
-        l.ID_EST,
-        l.ID_QUOTE                  AS LINE_ID_QUOTE,
-
-        -- Weight
-        l.WGT_ITEM,
+        -- Quote
+        TRIM(l.ID_QUOTE)            AS ID_QUOTE,
 
         -- User
-        l.ID_USER_ADD
+        TRIM(l.ID_USER_CHG)         AS ID_USER_CHG,
+
+        -- Custom Fields
+        l.CSTM_DATE_1,
+        l.CSTM_DATE_2,
+        l.CSTM_DATE_3,
+        l.CSTM_FLAG_3,
+        l.FLAG_OPTION_ATPIC,
+        TRIM(l.ID_LINE_PO)          AS ID_LINE_PO,
+        TRIM(l.ID_LINE_PO_EDI)      AS ID_LINE_PO_EDI
 
     FROM BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_Bronze" l
 
     UNION ALL
 
     SELECT
-        p.ID_ORD,
+        TRIM(p.ID_ORD)              AS ID_ORD,
         p.SEQ_LINE_ORD,
+        p.SEQ_REV_QUOTE,
         'PERM'                      AS LIN_SOURCE_TABLE,
 
-        p.ID_ITEM,
-        p.ID_ITEM_CUST,
-        p.ID_CONFIG,
-        p.ID_LOC,
-        TRIM(COALESCE(p.DESCR_1, '') || ' ' || COALESCE(p.DESCR_2, ''))  AS LINE_ITEM_DESCRIPTION,
-
-        p.CODE_CAT_PRDT,
-        p.CODE_CAT_COST,
-
-        p.QTY_ORG,
-        p.QTY_OPEN,
-        p.QTY_BO,
-        p.QTY_BOOK,
-        p.QTY_REL,
-        p.QTY_ALLOC,
-        p.QTY_SHIP_TOTAL,
-        p.QTY_SHIP_LAST,
+        TRIM(p.ID_ITEM)             AS ID_ITEM,
+        TRIM(p.ID_ITEM_CUST)        AS ID_ITEM_CUST,
+        TRIM(p.ID_LOC)              AS ID_LOC,
+        p.CODE_USER_1_IM,
+        p.CODE_USER_2_IM,
 
         p.PRICE_LIST_VP,
-        p.PRICE_SELL_VP,
-        p.PRICE_SELL_NET_VP,
         p.COST_UNIT_VP,
         p.PRICE_NET,
-
-        p.AMT_COMMSN,
+        p.RATIO_PRICE_SELL,
+        p.PRICE_SELL_VP,
 
         p.DATE_RQST,
         p.DATE_PROM,
         p.DATE_PICK_LAST,
         p.DATE_ACKN_LAST,
-        p.DATE_BOOK_LAST            AS LINE_DATE_BOOK_LAST,
-        p.DATE_SHIP_LAST            AS LINE_DATE_SHIP_LAST,
-        p.DATE_INVC_LAST            AS LINE_DATE_INVC_LAST,
-        p.DATE_REL,
+        p.DATE_CHG,
+        p.TIME_CHG,
 
         p.CODE_UM_ORD,
         p.CODE_UM_PRICE,
-        p.RATIO_STK_PRICE,
 
         p.FLAG_PICK,
-        p.FLAG_STK,
         p.FLAG_BO,
-        p.FLAG_PRIOR_LINE_ORD,
         p.FLAG_ACKN,
 
-        p.ID_LOC_SO,
-        p.ID_SO,
+        TRIM(p.ID_LOC_SO)           AS ID_LOC_SO,
+        TRIM(p.ID_SO)               AS ID_SO,
         p.SUFX_SO,
 
         p.VER_BO,
+        p.ATTACH_COMMENT,
 
-        p.ID_EST,
-        p.ID_QUOTE                  AS LINE_ID_QUOTE,
+        TRIM(p.ID_QUOTE)            AS ID_QUOTE,
 
-        p.WGT_ITEM,                 -- Note: WGT_ITEM is null in CP_ORDLIN_Bronze but populated in CP_ORDLIN_PERM_Bronze, so we still want to bring it in for historical orders
+        TRIM(p.ID_USER_CHG)         AS ID_USER_CHG,
 
-        p.ID_USER_ADD
+        -- Custom Fields
+        p.CSTM_DATE_1,
+        p.CSTM_DATE_2,
+        p.CSTM_DATE_3,
+        p.CSTM_FLAG_3,
+        p.FLAG_OPTION_ATPIC,
+        TRIM(p.ID_LINE_PO)          AS ID_LINE_PO,
+        TRIM(p.ID_LINE_PO_EDI)      AS ID_LINE_PO_EDI
 
     FROM BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_PERM_Bronze" p
 ),
@@ -312,25 +270,38 @@ ORD_LIN AS (
    Deduped to latest per ID_ORD; soft-deletes excluded
    Source: BRONZE_DATA.TCM_BRONZE.CP_ORDHDR_CUSTOM_COMMENTS_Bronze
    ============================================================ */
+
 ORD_COMMENTS AS (
     SELECT
         c.ID_ORD,
-        c.DATE_EST_SHIP,
-        c.DATE_OLD_SHIP,
+        c.DATE_EST_SHIP             AS ORD_COMMENT_DATE_EST_SHIP,
+        c.DATE_OLD_SHIP             AS ORD_COMMENT_DATE_OLD_SHIP,
         c.COMMENT                   AS ORD_COMMENT,
-        c.LATE_CODE,                 --! LATE_CODE values are defined as follows (per business)? [ NULL->79587,  1->307, 2->272, 9->48, 6->43, 3->10, 4->6, 5->4 ]   LATE_ORDER_CODE table in TCM to get the description.
-        c.FLAG_DEL,             
+        c.DATE_ADD                  AS ORD_COMMENT_DATE_ADD,
+        c.ID_USER_ADD               AS ORD_COMMENT_ID_USER_ADD,
+        c.DATE_CHG                  AS ORD_COMMENT_DATE_CHG,
+        c.ID_USER_CHG               AS ORD_COMMENT_ID_USER_CHG,
+        c."rowid"                   AS ORD_COMMENT_ROWID,
+        c.FLAG_DEL                  AS ORD_COMMENT_FLAG_DEL,
+        c.LATE_CODE                 AS ORD_COMMENT_LATE_CODE,    --! LATE_CODE values are defined as follows (per business)? [ NULL->79587,  1->307, 2->272, 9->48, 6->43, 3->10, 4->6, 5->4 ]   LATE_ORDER_CODE table in TCM to get the description.
+        c."rowversion"              AS ORD_COMMENT_ROWVERSION
     FROM (
         SELECT
-            ID_ORD,
+            TRIM(ID_ORD)            AS ID_ORD,
             DATE_EST_SHIP,
             DATE_OLD_SHIP,
             COMMENT,
-            LATE_CODE,
+            DATE_ADD,
+            TRIM(ID_USER_ADD)       AS ID_USER_ADD,
+            DATE_CHG,
+            TRIM(ID_USER_CHG)       AS ID_USER_CHG,
+            "rowid",
             FLAG_DEL,
+            LATE_CODE,
+            "rowversion",
             ROW_NUMBER() OVER (
                 PARTITION BY ID_ORD
-                ORDER BY "rowid" DESC NULLS LAST, "rowversion" DESC NULLS LAST
+                ORDER BY COALESCE(DATE_CHG, DATE_ADD) DESC NULLS LAST, "rowid" DESC NULLS LAST, "rowversion" DESC NULLS LAST
             ) AS RN
         FROM BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_CUSTOM_COMMENTS_Bronze"
         WHERE COALESCE(FLAG_DEL, '') <> 'D'
@@ -346,24 +317,46 @@ ORD_COMMENTS AS (
 LINE_COMMENTS AS (
     SELECT
         lc.ID_ORD,
+        lc.ATTACH_COMMENT_FILE      AS LINE_COMMENT_ATTACH_COMMENT_FILE,
+        lc.ID_SHIP                  AS LINE_COMMENT_ID_SHIP,
         lc.SEQ_LINE_ORD,
+        lc.CODE_COMMENT             AS LINE_COMMENT_CODE_RAW,
+        lc.SEQ_COMMENT              AS LINE_COMMENT_SEQ_COMMENT,
+        lc.ID_INVC                  AS LINE_COMMENT_ID_INVC,
+        lc.ID_USER_ADD              AS LINE_COMMENT_ID_USER_ADD,
+        lc.DATE_ADD                 AS LINE_COMMENT_DATE_ADD,
+        lc.TIME_ADD                 AS LINE_COMMENT_TIME_ADD,
+        lc.ID_USER_CHG              AS LINE_COMMENT_ID_USER_CHG,
+        lc.DATE_CHG                 AS LINE_COMMENT_DATE_CHG,
+        lc.TIME_CHG                 AS LINE_COMMENT_TIME_CHG,
+        lc.NOTE                     AS LINE_COMMENT_NOTE_RAW,
+        lc.FLAG_PRNT_PO             AS LINE_COMMENT_FLAG_PRNT_PO,
         lc.NOTE                     AS LINE_COMMENT_NOTE,
         lc.CODE_COMMENT             AS LINE_COMMENT_CODE,
         lc.CODE_QLFR                AS LINE_COMMENT_QLFR,
-        lc.REF                      AS LINE_COMMENT_REF,
-        lc.DATE_ADD                 AS LINE_COMMENT_DATE
+        lc.REF                      AS LINE_COMMENT_REF
     FROM (
         SELECT
-            ID_ORD,
+            TRIM(ID_ORD)            AS ID_ORD,
+            ATTACH_COMMENT_FILE,
+            TRIM(ID_SHIP)           AS ID_SHIP,
             SEQ_LINE_ORD,
-            NOTE,
             CODE_COMMENT,
+            SEQ_COMMENT,
+            TRIM(ID_INVC)           AS ID_INVC,
+            TRIM(ID_USER_ADD)       AS ID_USER_ADD,
+            DATE_ADD,
+            TIME_ADD,
+            TRIM(ID_USER_CHG)       AS ID_USER_CHG,
+            DATE_CHG,
+            TIME_CHG,
+            NOTE,
+            FLAG_PRNT_PO,
             CODE_QLFR,
             REF,
-            DATE_ADD,
             ROW_NUMBER() OVER (
                 PARTITION BY ID_ORD, SEQ_LINE_ORD
-                ORDER BY "rowid" DESC NULLS LAST, "rowversion" DESC NULLS LAST
+                ORDER BY COALESCE(DATE_CHG, DATE_ADD) DESC NULLS LAST, "rowid" DESC NULLS LAST, "rowversion" DESC NULLS LAST
             ) AS RN
         FROM BRONZE_DATA.TCM_BRONZE."CP_COMMENT_Bronze"
     ) lc
@@ -373,172 +366,153 @@ LINE_COMMENTS AS (
 /* ============================================================
    FINAL SELECT — Order-line grain master table
    Header fields denormalized onto every line
-   Reference lookups: sales rep name, location, product category
+   All columns from ORD_HDR, ORD_LIN, ORD_COMMENTS, LINE_COMMENTS
    VP pricing decoded to numeric + open-value calculations
    ============================================================ */
 SELECT
-    -- ── Order Key ─────────────────────────────────────────
-        l.ID_ORD as "Order ID",
-        l.SEQ_LINE_ORD as "Order_Sequence Line Number",
 
-    -- -- ── Source Tables ─────────────────────────────────────
-        -- h.HDR_SOURCE_TABLE,
-        l.LIN_SOURCE_TABLE as "Line_Source_Table",
+    -- ── Order Key ─────────────────────────────────────────────────────────────
+    l.ID_ORD                                                                AS Order_ID,
+    l.SEQ_LINE_ORD                                                          AS Order_Line_Sequence_Num,
+    l.SEQ_REV_QUOTE                                                         AS Order_Quote_Revision_Sequence,
 
-    -- ── Customer ──────────────────────────────────────────
-        h.ID_CUST_SOLDTO as "Customer_ID_Sold-To",
-        h.SEQ_SHIPTO as "Customer_End_User_Ship_To_Sequence_#",
-        -- h.ID_CUST_BILLTO,
-        h.NAME_CUST as "Customer_Name",
-        -- h.NAME_CUST_SHIPTO,
-        h.ID_PO_CUST as "Customer Purchase_Order_ID",
+    -- ── Customer ──────────────────────────────────────────────────────────────
+    h.ID_CUST_SOLDTO                                                        AS Customer_ID_Sold_To,
+    h.SEQ_SHIPTO                                                            AS Customer_End_User_Ship_To_Sequence_Num,
+    CONCAT(h.ID_CUST_SOLDTO, '-', LPAD(CAST(h.SEQ_SHIPTO AS VARCHAR), 4, '0'))
+                                                                            AS Customer_ID_Ship_To,
+    h.ID_CUST_BILLTO                                                        AS Customer_ID_Bill_To,
+    h.ID_PO_CUST                                                            AS Customer_Purchase_Order_ID,
 
-    -- ── Order Classification ──────────────────────────────
-        h.TYPE_ORD_CP as "Order_Type",
-        h.CODE_STAT_ORD as "Order_Status_Code",
+    -- ── Order Classification ───────────────────────────────────────────────────
+    h.TYPE_ORD_CP                                                           AS Order_Type,
+    h.CODE_STAT_ORD                                                         AS Order_Status_Code,
+    h.CODE_SRC_EDI                                                          AS EDI_Source_Code,
+    h.ABBRV_CONSIG                                                          AS Consignment_Abbreviation,
 
-    -- ── Customer Type Codes ───────────────────────────────
-        h.CODE_CUST_1 as "Customer_Code_1",
-        h.CODE_CUST_2 as "Customer_Code_2",
-        h.CODE_CUST_3 as "Customer_Code_3",
+    -- ── Sales Rep ─────────────────────────────────────────────────────────────
+    h.ID_SLSREP_1                                                           AS Employee_ID_TCM_Sales_Rep,
 
-    -- ── Sales Rep ─────────────────────────────────────────
-        h.ID_SLSREP_1 as "ID_Sales_Rep_1",
-        h.ID_SLSREP_2 as "ID_Sales_Rep_2",
-        h.ID_SLSREP_3 as "ID_Sales_Rep_3",
-        -- h.PCT_SPLIT_COMMSN_1,
-        -- h.PCT_SPLIT_COMMSN_2,
-        -- h.PCT_SPLIT_COMMSN_3,
-        -- h.PCT_COMMSN,
+    -- ── Item (line-level) ─────────────────────────────────────────────────────
+    l.ID_ITEM                                                               AS Item_ID_Child_SKU,
+    l.ID_ITEM_CUST                                                          AS Item_ID_Customer_SKU,
+    l.ID_LOC                                                                AS Order_Assigned_Location_ID,
+    l.CODE_USER_1_IM                                                        AS Order_Code_User_1,
+    l.CODE_USER_2_IM                                                        AS Order_Code_User_2,
 
-    -- ── Item (line-level) ─────────────────────────────────
-        l.ID_ITEM as "Item ID_Child SKU",
-        l.ID_ITEM_CUST as "Item ID_Customer SKU",
-        -- l.ID_CONFIG,
-        l.ID_LOC as "Item Location",
-        -- l.LINE_ITEM_DESCRIPTION,
-        l.CODE_CAT_PRDT as "Item_Product_Category_Code",
-        -- l.CODE_CAT_COST,
-        -- l.CODE_CAT_PRDT || h.CODE_CUST_1               AS CONCAT_PROD_CAT,
+    -- ── Pricing (raw VP varchar — retained for audit) ─────────────────────────
+    l.PRICE_NET                                                             AS Net_Price_At_Order,
+    l.RATIO_PRICE_SELL                                                      AS Order_Price_Sold_Ratio,
+    l.PRICE_SELL_VP                                                         AS Sold_Price_At_Order_VP,
 
-    -- ── Quantities ────────────────────────────────────────
-    l.QTY_ORG as "Original Order Quantity",
-    l.QTY_OPEN as "Open Order Quantity",
-    l.QTY_BO as "Backordered Quantity",
-    l.QTY_BOOK as "Booked Quantity",
-    l.QTY_REL as "Released Quantity",
-    l.QTY_ALLOC as "Allocated Quantity",
-    l.QTY_SHIP_TOTAL as "Total Shipped Quantity",
-    l.QTY_SHIP_LAST as "Last Shipped Quantity",
-    l.QTY_ORG - l.QTY_SHIP_TOTAL                   AS QTY_REMAINING,
+    -- ── Dates (header-level) ──────────────────────────────────────────────────
+    h.DATE_ORD                                                              AS Date_Ordered,
+    h.DATE_ADD                                                              AS Date_Order_Added,
 
-    -- ── Pricing (raw VP varchar — retained for audit) ─────
-    l.PRICE_LIST_VP as "Price List VP",
-    l.PRICE_SELL_VP as "Price Sell VP",
-    l.PRICE_SELL_NET_VP as "Price Sell Net VP",
-    l.COST_UNIT_VP as "Cost Unit VP",
-    l.PRICE_NET as "Total_Price",
+    -- ── Dates (line-level) ────────────────────────────────────────────────────
+    l.DATE_RQST                                                             AS Date_Order_Requested,
+    l.DATE_PROM                                                             AS Date_Order_Promised,
+    l.DATE_PICK_LAST                                                        AS Date_Order_Last_Picked,
+    l.DATE_ACKN_LAST                                                        AS Date_Order_Last_Acknowledged,
+    l.DATE_CHG                                                              AS Date_Order_Changed,
+    l.TIME_CHG                                                              AS Date_Order_Changed_Time,
 
-    -- ── Pricing (decoded numeric) ─────────────────────────
-    --   VP format: RIGHT(field, 10) gives mantissa; /10000 scales
-    --   TRY_CAST handles non-numeric VP values gracefully (→ NULL)
-    TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))       / 10000   AS "Unit_Cost_at_Order",
-    TRY_CAST(RIGHT(l.PRICE_LIST_VP, 10) AS DECIMAL(18,6))      / 10000   AS "List_Price_at_Order",
-    TRY_CAST(RIGHT(l.PRICE_SELL_VP, 10) AS DECIMAL(18,6))      / 10000   AS "Sell_Price_at_Order",
-    TRY_CAST(RIGHT(l.PRICE_SELL_NET_VP, 10) AS DECIMAL(18,6))  / 10000   AS "Net_Sell_Price_at_Order",
+    -- ── Terms / Discounts ─────────────────────────────────────────────────────
+    h.CODE_TRMS_CP                                                          AS Terms_At_Order,
+    h.DESCR_TRMS                                                            AS Terms_At_Order_Description,
+    h.PCT_DISC_TRMS                                                         AS Order_Discount_Percent_Terms,
+    h.PCT_DISC_ORD_1                                                        AS Order_Discount_Percent_1,
 
-    -- ── Open-Value Calculations ───────────────────────────
-    l.QTY_OPEN * (TRY_CAST(RIGHT(l.COST_UNIT_VP, 10) AS DECIMAL(18,6))      / 10000)   AS "Open_Cost_At_Order",
-    l.QTY_OPEN * (TRY_CAST(RIGHT(l.PRICE_SELL_NET_VP, 10) AS DECIMAL(18,6)) / 10000)   AS "Open_Net_Sell_At_Order",
-    l.QTY_OPEN * (TRY_CAST(RIGHT(l.PRICE_LIST_VP, 10) AS DECIMAL(18,6))     / 10000)   AS "Open_List_Price_At_Order",
+    -- ── Financials (header-level) ──────────────────────────────────────────────
+    h.AMT_ORD_TOTAL                                                         AS Order_Total_Amount,
+    h.COST_TOTAL                                                            AS Total_Cost_At_Order,
+    h.AMT_FRT                                                               AS Freight_Amount,
+    h.AMT_DISC                                                              AS Discount_Amount,
+    h.RATE_EXCHG_CRNCY                                                      AS Currency_Exchange_Rate,
 
-    -- ── Commission ────────────────────────────────────────
-    -- l.AMT_COMMSN,
+    -- ── Accounting ────────────────────────────────────────────────────────────
+    h.ACCT_ID_AR                                                            AS Accounting_Accounts_Receivable_ID,
+    h.ACCT_ID_DEP                                                           AS Accounting_Department_ID,
+    h.ACCT_ID_TAX                                                           AS Accounting_Tax_ID,
+    h.ACCT_ID_FRT                                                           AS Accounting_Freight_ID,
+    h.ACCT_ID_CHRG_MISC                                                     AS Accounting_Miscellaneous_Charge_ID,
+    h.ACCT_ID_FEE_RESTOCK                                                   AS Accounting_Restock_Fee_ID,
+    h.ACCT_DIV_TAX                                                          AS Accounting_Tax_DIV,
+    h.ACCT_DEPT_FRT                                                         AS Accounting_Freight_Department,
+    h.ACCT_DEPT_CHRG_MISC                                                   AS Accounting_Miscellaneous_Charge_Department,
+    h.ACCT_DEPT_FEE_RESTOCK                                                 AS Accounting_Restocking_Fee_Department,
 
-    -- ── Dates (header-level) ──────────────────────────────
-    h.DATE_ORD as "Date_Order",
-    h.DATE_ADD as "Date_Order_Created",
-    -- h.DATE_BOOK_LAST,
-    h.DATE_PICK_LAST as "Date_Order_Last_Picked",
-    -- h.DATE_ACKN_LAST,
+    -- ── Unit of Measure ───────────────────────────────────────────────────────
+    l.CODE_UM_ORD                                                           AS Order_Unit_Of_Measure_Code,
+    l.CODE_UM_PRICE                                                         AS Order_Unit_Of_Measure_Price,
 
-    -- ── Dates (line-level) ────────────────────────────────
-    l.DATE_RQST as "Date_Line_Requested",
-    l.DATE_PROM as "Date_Line_Promised",
-    -- l.LINE_DATE_BOOK_LAST,
-    -- l.LINE_DATE_SHIP_LAST,
-    -- l.LINE_DATE_INVC_LAST,
-    -- l.DATE_REL,
+    -- ── Flags (header-level) ──────────────────────────────────────────────────
+    h.FLAG_ASN_EDI                                                          AS EDI_Advance_Shipment_Flag,
+    h.FLAG_INVC_EDI                                                         AS EDI_Invoice_Capable_Flag,
+    h.FLAG_PAID_BY_CC                                                       AS Planned_Credit_Card_Payment_Flag,
+    h.FLAG_810                                                              AS EDI_Invoiced_Flag,
 
-    -- ── Shipping ──────────────────────────────────────────
-    h.ID_LOC_SHIPFM as "Location ID_Ship-From",
-    -- h.CODE_SHIP_VIA_CP,
-    h.DESCR_SHIP_VIA as "Shipping_Method_Description",
-    -- h.ADDR_1,
-    -- h.ADDR_2,
-    -- h.CITY,
-    -- h.ID_ST,
-    -- h.ZIP,
-    -- h.COUNTRY,
+    -- ── Flags (line-level) ────────────────────────────────────────────────────
+    l.FLAG_PICK                                                             AS Order_Picked_Flag,
+    l.FLAG_BO                                                               AS Order_Backorder_Flag,
+    l.FLAG_ACKN                                                             AS Order_Acknowledged_Flag,
+    l.ATTACH_COMMENT                                                        AS Order_Line_Comment_Attached_Flag,
 
-    -- ── Terms / Discounts ─────────────────────────────────
-    -- h.CODE_TRMS_CP,
-    -- h.DESCR_TRMS,
-    -- h.PCT_DISC_TRMS,
-    h.PCT_DISC_ORD_1 as "Order_Discount_Percent_1",
-    h.PCT_DISC_ORD_2 as "Order_Discount_Percent_2",
-    h.PCT_DISC_ORD_3 as "Order_Discount_Percent_3",
+    -- ── Shop Order Linkage (FK → MASTER_SHOPORDER_TABLE) ──────────────────────
+    l.ID_LOC_SO                                                             AS Shop_Order_Location_ID,
+    l.ID_SO                                                                 AS Shop_Order_ID,
+    l.SUFX_SO                                                               AS Shop_Order_ID_Suffix,
 
-    -- ── Financials (header-level) ─────────────────────────
-    h.AMT_ORD_TOTAL as "Order_Amount_Total",
-    -- h.COST_TOTAL,
-    -- h.AMT_FRT,
-    -- h.TAX_SLS,
+    -- ── Backorder ─────────────────────────────────────────────────────────────
+    l.VER_BO                                                                AS Backorder_Version,
 
-    -- ── Unit of Measure ───────────────────────────────────
-    l.CODE_UM_ORD as "Unit of Measure_Order",
-    l.CODE_UM_PRICE as "Unit of Measure_Price",
-    -- l.RATIO_STK_PRICE,
+    -- ── Reference ─────────────────────────────────────────────────────────────
+    h.ID_ORD_WEB                                                            AS Order_ID_Web,
+    h.ID_DOC_APPLYTO                                                        AS Document_Applied_To_ID,
+    h.ID_REL                                                                AS Order_Release_ID,
+    h.ID_REV                                                                AS Order_Revision_ID,
+    l.ID_QUOTE                                                              AS Customer_Quote_ID,
 
-    -- ── Flags ─────────────────────────────────────────────
-    l.FLAG_PICK as "Order_Pick_Flag",
-    l.FLAG_STK as "Order_Line_Stock_Flag",
-    l.FLAG_BO as "Order_Backorder_Flag",
-    -- l.FLAG_PRIOR_LINE_ORD,
-    l.FLAG_ACKN as "Order_Acknowledgement_Flag",
+    -- ── User ──────────────────────────────────────────────────────────────────
+    h.ID_USER_ADD                                                           AS Employee_ID_User_Add_Order,
+    l.ID_USER_CHG                                                           AS Employee_ID_User_Change_Order,
 
-    -- ── Shop Order Linkage (FK → MASTER_SHOPORDER_TABLE) ──
-    l.ID_LOC_SO as "Shop_Order_Location_ID",
-    l.ID_SO as "Shop_Order_ID",
-    l.SUFX_SO as "Shop_Order_ID_Suffix",
+    -- ── Custom Fields (line-level) ────────────────────────────────────────────
+    l.CSTM_DATE_1                                                           AS Custom_Date_1,
+    l.CSTM_DATE_2                                                           AS Custom_Date_2,
+    l.CSTM_DATE_3                                                           AS Custom_Date_3,
+    l.CSTM_FLAG_3                                                           AS Custom_Flag_3,
+    l.FLAG_OPTION_ATPIC                                                     AS Option_ATPIC_Flag,
+    l.ID_LINE_PO                                                            AS Order_Line_PO_ID,
+    l.ID_LINE_PO_EDI                                                        AS Order_Line_PO_EDI_ID,
 
-    -- ── Backorder ─────────────────────────────────────────
-    l.VER_BO as "Version_Backorder",
+    -- ── Comments / Ship Dates (ORD_COMMENTS) ──────────────────────────────────
+    c.ORD_COMMENT_DATE_EST_SHIP                                             AS Order_Comment_Operations_Date_Shipment_Estimate,
+    c.ORD_COMMENT_DATE_OLD_SHIP                                             AS Order_Comment_Operations_Date_Shipment_Estimate_Old,
+    c.ORD_COMMENT                                                           AS Order_Comment_Operations,
+    c.ORD_COMMENT_DATE_ADD                                                  AS Date_Order_Comment_Operations_Added,
+    c.ORD_COMMENT_ID_USER_ADD                                               AS Employee_ID_User_Add_Order_Comment_Operations,
+    c.ORD_COMMENT_DATE_CHG                                                  AS Date_Order_Comment_Operations_Changed,
+    c.ORD_COMMENT_ID_USER_CHG                                               AS Employee_ID_User_Change_Order_Comment_Operations,
+    c.ORD_COMMENT_FLAG_DEL                                                  AS Order_Comment_Operations_Deleted_Flag,
+    c.ORD_COMMENT_LATE_CODE                                                 AS Order_Comment_Operations_Late_Code,
 
-    -- ── Reference ─────────────────────────────────────────
-    h.ID_TERR as "Employee_Territory_ID",
-    h.ID_QUOTE as "Order_Quote_ID",
-    h.ID_JOB as "Order_Job_Triggered_ID",
-    l.ID_EST as "Order_Estimate_ID",
-    l.LINE_ID_QUOTE as "Order_Line_Quote_ID",
-    -- l.WGT_ITEM,
-
-    -- ── Comments / Ship Dates ─────────────────────────────
-    c.DATE_EST_SHIP as "Date_Order_Ship_Estimate",
-    c.DATE_OLD_SHIP as "Date_Order_Ship_Old",
-    c.ORD_COMMENT as "Order_Comment_Production",
-    c.LATE_CODE as "Order_Late_Code_Production",
-    c.FLAG_DEL,
-
-    -- ── Line Comments (CP_COMMENT) ─────────────────────────
-    lc.LINE_COMMENT_NOTE as "Order_Line_Comment_CX_Note",
-    lc.LINE_COMMENT_CODE as "Order_Line_Comment_CX_Code",
-    lc.LINE_COMMENT_QLFR as "Order_Line_Comment_CX_Qualifier",
-    lc.LINE_COMMENT_REF as "Order_Line_Comment_CX_Reference",
-    lc.LINE_COMMENT_DATE as "Date_Order_Line_Comment_CX",
-
-    -- ── User ──────────────────────────────────────────────
-    h.ID_USER_ADD as "Employee_ID_User_Add"
+    -- ── Line Comments (LINE_COMMENTS) ─────────────────────────────────────────
+    lc.LINE_COMMENT_NOTE                                                    AS Order_Comment_CX_Note,
+    lc.LINE_COMMENT_CODE                                                    AS Order_Comment_CX_Code,
+    lc.LINE_COMMENT_SEQ_COMMENT                                             AS Order_Comment_CX_Sequence,
+    lc.LINE_COMMENT_ATTACH_COMMENT_FILE                                     AS Order_Comment_CX_Attached_File,
+    lc.LINE_COMMENT_FLAG_PRNT_PO                                            AS Order_Comment_CX_Print_Purchase_Order_Flag,
+    lc.LINE_COMMENT_QLFR                                                    AS Order_Line_Comment_CX_Qualifier,
+    lc.LINE_COMMENT_REF                                                     AS Order_Line_Comment_CX_Reference,
+    lc.LINE_COMMENT_ID_SHIP                                                 AS Order_Comment_CX_Shipment_ID,
+    lc.LINE_COMMENT_ID_INVC                                                 AS Order_Comment_CX_Invoice_ID,
+    lc.LINE_COMMENT_ID_USER_ADD                                             AS Employee_ID_User_Add_Order_Comment_CX,
+    lc.LINE_COMMENT_DATE_ADD                                                AS Date_Order_Comment_CX_Added,
+    lc.LINE_COMMENT_TIME_ADD                                                AS Date_Order_Comment_CX_Added_Time,
+    lc.LINE_COMMENT_ID_USER_CHG                                             AS Employee_ID_User_Change_Order_Comment_CX,
+    lc.LINE_COMMENT_DATE_CHG                                                AS Date_Order_Comment_CX_Changed,
+    lc.LINE_COMMENT_TIME_CHG                                                AS Date_Order_Comment_CX_Changed_Time
 
 FROM ORD_LIN l
 INNER JOIN ORD_HDR h
@@ -552,15 +526,13 @@ LEFT JOIN LINE_COMMENTS lc
 /* ============================================================
    Dedupe Guard — enforce one row per business key
    Business key: (ID_ITEM, ID_ORD, SEQ_LINE_ORD)
-   Priority: ACTIVE line/header over PERM, then open qty/date recency
+   Priority: ACTIVE header over PERM, then date recency
    ============================================================ */
 QUALIFY ROW_NUMBER() OVER (
     PARTITION BY l.ID_ITEM, l.ID_ORD, l.SEQ_LINE_ORD
     ORDER BY
-        CASE WHEN l.LIN_SOURCE_TABLE = 'ACTIVE' THEN 0 ELSE 1 END,
         CASE WHEN h.HDR_SOURCE_TABLE = 'ACTIVE' THEN 0 ELSE 1 END,
-        CASE WHEN l.QTY_OPEN > 0 THEN 0 ELSE 1 END,
-        COALESCE(l.DATE_REL, l.DATE_PROM, h.DATE_ORD, TO_DATE('1900-01-01')) DESC,
+        COALESCE(l.DATE_PROM, h.DATE_ORD, TO_DATE('1900-01-01')) DESC,
         COALESCE(l.ID_LOC, '') ASC,
         COALESCE(l.ID_SO, '') ASC,
         COALESCE(l.SUFX_SO, 0) ASC
