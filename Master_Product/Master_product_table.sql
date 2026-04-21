@@ -599,8 +599,12 @@ item_prim_loc AS (
         ipr."Inventory_Location_ID"                 AS "Item_Primary_Location",
         ipr."Item_Secondary_Location_List"          AS "Item_Secondary_Locations",
         UPPER(b.flag_stat_item)                     AS "Item_Status_Child_Active_Status",
-        UPPER(pd.PARENT_ITEM_STATUS)                AS "Item_Status_Parent_Active_Status"
-
+        UPPER(pd.PARENT_ITEM_STATUS)                AS "Item_Status_Parent_Active_Status",
+        -- create a new calc field for Item_Stk_Flag with the logic that if the item from itmmas_base is present in the itmmas_stk table then 'Y' else 'N' 
+        CASE 
+            WHEN stkl.id_item IS NOT NULL THEN 'Y' 
+            ELSE 'N' 
+        END AS "Item_Stocked_Flag"
     FROM ITMMAS_BASE b
     LEFT JOIN ITMMAS_COST ic on b.id_item = ic.id_item 
     LEFT JOIN TABLES_CODE_CAT_COST cc ON b.code_cat_cost = cc.code_cat_cost

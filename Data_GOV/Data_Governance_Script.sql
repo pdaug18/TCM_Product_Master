@@ -2,6 +2,9 @@
 -- Works for tables and views. Dynamic tables are covered when exposed via INFORMATION_SCHEMA.TABLES.
 -- Replace the parameter placeholders or SET from an upstream procedure/task.
 
+/*
+SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE_SILVER
+ */
 
 SET DB_NAME = 'SILVER_DATA';        -- Set to the database containing the object
 SET SCHEMA_NAME = 'TCM_SILVER';  -- Set to the schema containing the object
@@ -150,7 +153,10 @@ BEGIN
 
 	SELECT
 		'CREATE OR REPLACE TEMP TABLE SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_PROFILE AS '
-		|| LISTAGG(sql_fragment, ' UNION ALL ') WITHIN GROUP (ORDER BY ordinal_position)
+		|| COALESCE(
+			NULLIF(TRIM(LISTAGG(sql_fragment, ' UNION ALL ') WITHIN GROUP (ORDER BY ordinal_position)), ''),
+			'SELECT NULL::STRING AS column_name, NULL::NUMBER AS ordinal_position, NULL::STRING AS min_value, NULL::STRING AS max_value, NULL::NUMBER AS min_length, NULL::NUMBER AS max_length, NULL::NUMBER AS distinct_count, NULL::NUMBER(10,2) AS "NULL_%", NULL::STRING AS sample_values WHERE 1=0'
+		)
 	INTO :PROFILING_SQL
 	FROM (
 		WITH c AS (
