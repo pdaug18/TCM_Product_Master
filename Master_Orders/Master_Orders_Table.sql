@@ -409,6 +409,13 @@ SELECT
     h.DATE_ORD                                                              AS Date_Ordered,
     h.DATE_ADD                                                              AS Date_Order_Added,
 
+    -- ── Financials (header-level) ──────────────────────────────────────────────
+    h.AMT_ORD_TOTAL                                                         AS Order_Total_Amount,
+    h.COST_TOTAL                                                            AS Total_Cost_At_Order,
+    h.AMT_FRT                                                               AS Freight_Amount,
+    h.AMT_DISC                                                              AS Discount_Amount,
+    h.RATE_EXCHG_CRNCY                                                      AS Currency_Exchange_Rate,
+    
     -- ── Dates (line-level) ────────────────────────────────────────────────────
     l.DATE_RQST                                                             AS Date_Order_Requested,
     l.DATE_PROM                                                             AS Date_Order_Promised,
@@ -423,12 +430,6 @@ SELECT
     h.PCT_DISC_TRMS                                                         AS Order_Discount_Percent_Terms,
     h.PCT_DISC_ORD_1                                                        AS Order_Discount_Percent_1,
 
-    -- ── Financials (header-level) ──────────────────────────────────────────────
-    h.AMT_ORD_TOTAL                                                         AS Order_Total_Amount,
-    h.COST_TOTAL                                                            AS Total_Cost_At_Order,
-    h.AMT_FRT                                                               AS Freight_Amount,
-    h.AMT_DISC                                                              AS Discount_Amount,
-    h.RATE_EXCHG_CRNCY                                                      AS Currency_Exchange_Rate,
 
     -- ── Accounting ────────────────────────────────────────────────────────────
     h.ACCT_ID_AR                                                            AS Accounting_Accounts_Receivable_ID,
