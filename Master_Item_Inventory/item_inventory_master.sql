@@ -229,7 +229,7 @@ SELECT
     isd.qty_mult_ord_rop,
     isd.qty_ord_econ,
     isd.lt_rop,
-    CASE
+    CASE    
         WHEN isd.flag_stk IN ('S', 'M') OR isd.flag_show = 'Y' THEN isd.Qty_Start + isd.Qty_Start_PND
         ELSE 0
     END AS Qty_Cut,

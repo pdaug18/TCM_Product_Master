@@ -1,29 +1,35 @@
-WITH sku_attributes AS (
-    SELECT
-        TRIM(ib.id_item) AS "Item_ID_Child_SKU",
-        MAX(
-            CASE
-                WHEN TRIM(av.id_attr) = 'ID_PARENT' THEN TRIM(av.val_string_attr)
-                ELSE ''
-            END
-        ) AS "Item_ID_Parent_SKU"
-    FROM BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" ib
-    LEFT JOIN BRONZE_DATA.TCM_BRONZE."IM_CMCD_ATTR_VALUE_Bronze" av
-           ON TRIM(ib.id_item) = TRIM(av.id_item)
-          AND ib.code_comm = av.code_comm
-    -- WHERE ib.code_comm <> 'PAR'
-    WHERE ib.code_comm = 'FG'
-    GROUP BY TRIM(ib.id_item)
-)
-SELECT
-    COUNT(DISTINCT s."Item_ID_Child_SKU") AS "Distinct_Child_SKU_Count",
-    COUNT(DISTINCT NULLIF(TRIM(s."Item_ID_Parent_SKU"), '')) AS "Distinct_Parent_SKU_Count",
-    COUNT_IF(NULLIF(TRIM(s."Item_ID_Parent_SKU"), '') IS NULL) AS "Missing_Parent_SKU_Count",
-    ROUND(
-        COUNT_IF(NULLIF(TRIM(s."Item_ID_Parent_SKU"), '') IS NULL)
-        * 100.0
-        / NULLIF(COUNT(DISTINCT s."Item_ID_Child_SKU"), 0),
-        2
-    ) AS "Missing_Parent_SKU_Percent"
-FROM sku_attributes s;
-
+ID_ITEM	text	30
+ID_LOC	text	5
+QTY_ONHD	bigint	8
+QTY_ALLOC	bigint	8
+QTY_ONORD	bigint	8
+QTY_FRZN	bigint	8
+QTY_INSP	bigint	8
+FLAG_STK	text	7
+FLAG_BO	text	7
+COST_LAST	decimal	10
+COST_AVG	decimal	10
+BIN_PRIM	text	20
+CODE_CAT_PRDT	text	2
+ID_PRDTLINE	text	15
+FLAG_STAT_ITEM	text	7
+CODE_UM_STK	text	2
+CODE_UM_PUR	text	2
+CODE_UM_PRICE	text	2
+WGT_ITEM	decimal	8
+DESCR_1	text	30
+LEVEL_ROP	bigint	8
+QTY_MIN_ROP	bigint	8
+QTY_MULT_ORD_ROP	bigint	8
+QTY_ORD_ECON	bigint	8
+LT_ROP	bigint	3
+OPEN_SHOP_ORDER_QTY	bigint	21
+OPEN_SHOP_ORDER_COUNT	bigint	18
+EARLIEST_SHOP_ORDER_DUE_DATE	datetime	
+TOTAL_HIST_QTY_CHANGE	bigint	20
+TOTAL_HIST_TRANSACTION_COST	decimal	22
+HIST_TRANSACTION_COUNT	bigint	18
+LAST_MOVEMENT_DATE	datetime	
+INVENTORY_HISTORY_LAST_CHANGE_DATE	datetime	
+INVENTORY_HISTORY_LAST_TRANSACTION_CODE	text	134217728
+INVENTORY_HISTORY_LAST_POST_STATUS_FLAG	text	1
