@@ -154,7 +154,7 @@ BEGIN
 		'CREATE OR REPLACE TEMP TABLE SANDBOX_RND.DATA_GOVERNANCE_PROFILING.TMP_GOV_COLUMN_PROFILE AS '
 		|| COALESCE(
 			NULLIF(TRIM(LISTAGG(sql_fragment, ' UNION ALL ') WITHIN GROUP (ORDER BY ordinal_position)), ''),
-			'SELECT NULL::STRING AS column_name, NULL::NUMBER AS ordinal_position, NULL::STRING AS min_value, NULL::STRING AS max_value, NULL::NUMBER AS min_length, NULL::NUMBER AS max_length, NULL::NUMBER AS distinct_count, NULL::NUMBER(10,2) AS "NULL_%", NULL::STRING AS sample_values WHERE 1=0'
+			'SELECT NULL::STRING AS column_name, NULL::NUMBER AS ordinal_position, NULL::STRING AS min_value, NULL::STRING AS max_value, NULL::NUMBER AS min_length, NULL::NUMBER AS max_length, NULL::NUMBER AS distinct_count, NULL::NUMBER(10,2) AS "NULL_%", NULL::STRING AS sample_values, NULL::STRING AS value_composition WHERE 1=0'
 		)
 	INTO :PROFILING_SQL
 	FROM (
@@ -204,7 +204,21 @@ BEGIN
 				|| 'AND NULLIF(TRIM(TO_VARCHAR(' || col_ref || ')), '''') IS NOT NULL '
 				|| 'ORDER BY HASH(sample_v) '
 				|| 'LIMIT ' || $SAMPLE_VALUE_COUNT
-				|| ')) AS sample_values '
+				|| ')) AS sample_values, '
+				|| 'IFF(COUNT(DISTINCT NULLIF(TRIM(TO_VARCHAR(' || col_ref || ')), '''')) < 5, '
+				|| '(SELECT LISTAGG(value_stats, '' | '') WITHIN GROUP (ORDER BY sample_v) FROM ('
+				|| 'SELECT sample_v || '' ('' || value_count || '', '' || value_pct || ''%)'' AS value_stats, sample_v '
+				|| 'FROM ('
+				|| 'SELECT TO_VARCHAR(' || col_ref || ') AS sample_v, COUNT(*) AS value_count, '
+				|| 'ROUND(COUNT(*) / NULLIF(SUM(COUNT(*)) OVER (), 0) * 100, 2) AS value_pct '
+				|| 'FROM ' || $OBJECT_FQN
+				|| IFF($PROFILE_ON_SAMPLE, ' SAMPLE BERNOULLI (' || $PROFILE_SAMPLE_PCT || ') ', ' ')
+				|| 'WHERE ' || col_ref || ' IS NOT NULL '
+				|| 'AND NULLIF(TRIM(TO_VARCHAR(' || col_ref || ')), '''') IS NOT NULL '
+				|| 'GROUP BY 1 '
+				|| 'ORDER BY 1'
+				|| ')))'
+				|| ', NULL) AS value_composition '
 				|| 'FROM ' || $OBJECT_FQN
 				|| IFF($PROFILE_ON_SAMPLE, ' SAMPLE BERNOULLI (' || $PROFILE_SAMPLE_PCT || ') ', '')
 				AS sql_fragment
@@ -236,7 +250,8 @@ SELECT
 	p.max_value,
 	p.distinct_count,
 	p."NULL_%",
-	p.sample_values
+	p.sample_values AS "Sample_Values",
+	p.value_composition AS "Value_Composition"
 	-- b.is_primary_key,
 	-- b.is_foreign_key,
 	-- b.is_identity,
