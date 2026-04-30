@@ -7,7 +7,7 @@ BRONZE_DATA.TCM_BRONZE."IMHIST_Bronze" */
 
 SET DB_NAME = 'SILVER_DATA';        -- Set to the database containing the object
 SET SCHEMA_NAME = 'TCM_SILVER';  -- Set to the schema containing the object
-SET OBJECT_NAME = 'MASTER_INVENTORY_SILVER';  -- Set to the table or view name to profile
+SET OBJECT_NAME = 'SHOP_ORDER_MASTER_SILVER';  -- Set to the table or view name to profile
 
 -- Profiling controls: for large objects, set PROFILE_ON_SAMPLE = TRUE to reduce scan cost.
 SET PROFILE_ON_SAMPLE = FALSE;  -- Set to TRUE to enable sampling for profiling (uses SAMPLE BERNOULLI)

@@ -2,6 +2,15 @@
 This script creates and replaces a dynamic table named item_inventory_master in Snowflake.
 The table includes finished goods, their quantity metrics, and a derived primary source.
 
+- x [nsa].[CM_CONTACTS_VENDOR]
+- x [nsa].[DOC_XREF_VENDOR_ITEM]
+- x [nsa].[OPVEND]
+- x [nsa].[VENMAS_NOTE]
+- [nsa].[VENMAS_ORDFM]
+- [nsa].[VENMAS_PAYTO]
+- [nsa].[ITMMAS_VND]
+-- (view) [nsa].[RPT40_VENMAS]
+
 Logic Breakdown:
 1.  FinishedGoods CTE: 
         Filters for items that are finished goods based on their cost category and commission code in the BRONZE_DATA.TCM_BRONZE."ITMMAS_BASE_Bronze" table.
