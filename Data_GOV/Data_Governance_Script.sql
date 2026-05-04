@@ -3,11 +3,11 @@
 -- Replace the parameter placeholders or SET from an upstream procedure/task.
 
 /*
-BRONZE_DATA.TCM_BRONZE."IMHIST_Bronze" */
+GOLD_DATA.TCM_GOLD."OPEN_ORDERS_GOLD" */
 
-SET DB_NAME = 'SILVER_DATA';        -- Set to the database containing the object
-SET SCHEMA_NAME = 'TCM_SILVER';  -- Set to the schema containing the object
-SET OBJECT_NAME = 'SHOP_ORDER_MASTER_SILVER';  -- Set to the table or view name to profile
+SET DB_NAME = 'GOLD_DATA';        -- Set to the database containing the object
+SET SCHEMA_NAME = 'TCM_GOLD';  -- Set to the schema containing the object
+SET OBJECT_NAME = 'OPEN_ORDERS_GOLD';  -- Set to the table or view name to profile
 
 -- Profiling controls: for large objects, set PROFILE_ON_SAMPLE = TRUE to reduce scan cost.
 SET PROFILE_ON_SAMPLE = FALSE;  -- Set to TRUE to enable sampling for profiling (uses SAMPLE BERNOULLI)
