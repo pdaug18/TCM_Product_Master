@@ -3,7 +3,9 @@
 -- Replace the parameter placeholders or SET from an upstream procedure/task.
 
 /*
-GOLD_DATA.TCM_GOLD."OPEN_ORDERS_GOLD" */
+GOLD_DATA.TCM_GOLD."OPEN_ORDERS_GOLD" 
+SILVER_DATA.TCM_SILVER."MASTER_ORDERS_TABLE_SILVER"
+*/
 
 SET DB_NAME = 'GOLD_DATA';        -- Set to the database containing the object
 SET SCHEMA_NAME = 'TCM_GOLD';  -- Set to the schema containing the object

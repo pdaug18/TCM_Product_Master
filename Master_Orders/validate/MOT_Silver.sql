@@ -1,33 +1,29 @@
-select * 
-from SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE_SILVER
-limit 10;
+-- SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE_SILVER
 
-select distinct "Order_ID", "Order_Line_Sequence_#", count(*) cnt
-from SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE_SILVER
-where  "Record_Source_Hdr" = 'ACTIVE' 
--- and "Record_Source_Lin" = 'ACTIVE'
-group by "Order_ID", "Order_Line_Sequence_#"
-having count(*) > 1
-order by cnt desc;
+select distinct "Order_ID", count(*) as "Order_Count"
+from SILVER_DATA.TCM_SILVER."MASTER_ORDERS_TABLE_SILVER"
+where "Record_Source_Lin" = 'ACTIVE' and "Record_Source_Hdr" = 'ACTIVE'
+group by "Order_ID"
+HAVING "Order_Count" > 1
+order by "Order_Count" desc
 
-select distinct "Record_Source_Hdr", "Record_Source_Lin", count(*) cnt
-from SILVER_DATA.TCM_SILVER.MASTER_ORDERS_TABLE_SILVER
-group by "Record_Source_Hdr", "Record_Source_Lin"
-order by cnt desc;
-/*
-SRC_Hdr	SRC_Lin	CNT
-PERM	PERM	1247251
-ACTIVE	PERM	15398
-PERM	ACTIVE	7787
-ACTIVE	ACTIVE	7779
-*/
-
-select count(distinct TRIM(ID_ORD)) -- 2653
-from BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_Bronze";
-
-select count(distinct TRIM(ID_ORD), TRIM(SEQ_LINE_ORD)) --7779
-from BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_Bronze";
+select count(*)
+from SILVER_DATA.TCM_SILVER."MASTER_ORDERS_TABLE_SILVER"
+where "Order_ID" = '862188'     -- 1692
+and "Record_Source_Lin" = 'ACTIVE' and "Record_Source_Hdr" = 'ACTIVE'   -- 423
 
 select * 
+from BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_Bronze"
+where ID_ORD = '843520'
+
+select *
 from BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_Bronze"
-where ID_ORD = '856049' and SEQ_LINE_ORD = '5';
+where ID_ORD = '840574' --423
+
+843520
+
+--"Order_ID" = 840574 AND "Record_Source_Lin" = 'ACTIVE'
+
+select *
+from BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_Bronze"
+where ID_ORD = '843520' --423
