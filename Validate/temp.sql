@@ -1,35 +1,48 @@
-ID_ITEM	text	30
-ID_LOC	text	5
-QTY_ONHD	bigint	8
-QTY_ALLOC	bigint	8
-QTY_ONORD	bigint	8
-QTY_FRZN	bigint	8
-QTY_INSP	bigint	8
-FLAG_STK	text	7
-FLAG_BO	text	7
-COST_LAST	decimal	10
-COST_AVG	decimal	10
-BIN_PRIM	text	20
-CODE_CAT_PRDT	text	2
-ID_PRDTLINE	text	15
-FLAG_STAT_ITEM	text	7
-CODE_UM_STK	text	2
-CODE_UM_PUR	text	2
-CODE_UM_PRICE	text	2
-WGT_ITEM	decimal	8
-DESCR_1	text	30
-LEVEL_ROP	bigint	8
-QTY_MIN_ROP	bigint	8
-QTY_MULT_ORD_ROP	bigint	8
-QTY_ORD_ECON	bigint	8
-LT_ROP	bigint	3
-OPEN_SHOP_ORDER_QTY	bigint	21
-OPEN_SHOP_ORDER_COUNT	bigint	18
-EARLIEST_SHOP_ORDER_DUE_DATE	datetime	
-TOTAL_HIST_QTY_CHANGE	bigint	20
-TOTAL_HIST_TRANSACTION_COST	decimal	22
-HIST_TRANSACTION_COUNT	bigint	18
-LAST_MOVEMENT_DATE	datetime	
-INVENTORY_HISTORY_LAST_CHANGE_DATE	datetime	
-INVENTORY_HISTORY_LAST_TRANSACTION_CODE	text	134217728
-INVENTORY_HISTORY_LAST_POST_STATUS_FLAG	text	1
+ID_SO	text	9
+SUFX_SO	bigint	3
+ID_ITEM_PAR	text	30
+sh_ID_LOC	text	5
+sh_ID_OPER	text	134217728
+STAT_REC_SO	text	1
+DATE_ADD	datetime	
+DATE_START_OPER_1ST	datetime	
+TIME_START_OPER_1ST	bigint	6
+DATE_DUE_ORD	datetime	
+so_ID_OPER	text	134217728
+so_ID_WC	text	4
+so_ID_LOC	text	5
+HR_LABOR_SF	decimal	8
+so_QTY_CMPL	bigint	8
+so_QTY_ORD	bigint	8
+STAT_REC_OPER_OPER	text	1
+rto_ID_ITEM	text	30
+rto_ID_OPER	text	134217728
+ID_RTE	text	5
+rto_ID_WC	text	4
+HR_MACH_SR	decimal	8
+DATETIME_APPROVED	datetime	
+TIME_APPROVED	bigint	6
+DATE_APPROVED	datetime	
+Shop_Order_Pre_Production	text	21
+sm_ID_OPER	text	134217728
+ID_ITEM_COMP	text	30
+sm_ID_LOC	text	5
+Shop_Order_Work_Center	text	4
+Shop_Floor_Machine_Labor_Standard_Rate	decimal	8
+Work_Center_Description	text	30
+Work_Center_Minutes_Actual	decimal	30
+Work_Center_Minutes_Earned	decimal	30
+Work_Center_Minutes_Available	decimal	30
+Work_Center_Minutes_Indirect	decimal	30
+Work_Center_Minutes_Sample	decimal	30
+Employee_Location	text	20
+First_Shift_Ft	bigint	13
+Second_Shift_Ft	bigint	13
+Second_Shift_Pt	bigint	13
+Inactive	bigint	13
+First_Shift_Ft_Employees	text	134217728
+Second_Shift_Ft_Employees	text	134217728
+Second_Shift_Pt_Employees	text	134217728
+First_Shift_Teams	text	134217728
+Second_Shift_Teams	text	134217728
+LOC_DESCR	text	10

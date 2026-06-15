@@ -17,8 +17,8 @@ from BRONZE_DATA.TCM_BRONZE."CP_ORDHDR_Bronze"
 where ID_ORD = '843520'
 
 select *
-from BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_Bronze"
-where ID_ORD = '840574' --423
+from SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE_SILVER
+where Item_ID_Child_SKU = '840574' --423
 
 843520
 
@@ -27,3 +27,8 @@ where ID_ORD = '840574' --423
 select *
 from BRONZE_DATA.TCM_BRONZE."CP_ORDLIN_Bronze"
 where ID_ORD = '843520' --423
+
+
+select "Item_Stocked_Flag"
+from SILVER_DATA.TCM_SILVER.MASTER_PRODUCT_TABLE_SILVER
+where "Item_ID_Child_SKU" = '10786A-06-L'

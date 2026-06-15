@@ -5,11 +5,12 @@
 /*
 GOLD_DATA.TCM_GOLD."OPEN_ORDERS_GOLD" 
 SILVER_DATA.TCM_SILVER."MASTER_ORDERS_TABLE_SILVER"
+BRONZE_DATA.TCM_BRONZE.TABLES_LOC_Bronze
 */
 
-SET DB_NAME = 'GOLD_DATA';        -- Set to the database containing the object
-SET SCHEMA_NAME = 'TCM_GOLD';  -- Set to the schema containing the object
-SET OBJECT_NAME = 'OPEN_ORDERS_GOLD';  -- Set to the table or view name to profile
+SET DB_NAME = 'SILVER_DATA';        -- Set to the database containing the object
+SET SCHEMA_NAME = 'TCM_SILVER';  -- Set to the schema containing the object
+SET OBJECT_NAME = 'SHIPMENT_MASTER_SILVER';  -- Set to the table or view name to profile
 
 -- Profiling controls: for large objects, set PROFILE_ON_SAMPLE = TRUE to reduce scan cost.
 SET PROFILE_ON_SAMPLE = FALSE;  -- Set to TRUE to enable sampling for profiling (uses SAMPLE BERNOULLI)

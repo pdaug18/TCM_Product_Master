@@ -387,5 +387,3 @@ and (sl.id_ship is NULL OR sl.QTY_OPEN > sl.QTY_SHIP)
 and (sh.SUFX_SO = 0 OR sh.SUFX_SO is null)
 
 
-
-select top 10 * from ITMMAS_COST
